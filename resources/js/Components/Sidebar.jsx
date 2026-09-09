@@ -6,6 +6,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import PeopleIcon from '@mui/icons-material/People';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import BusinessIcon from "@mui/icons-material/Business";
 
 const OPEN_WIDTH = 220;
 const CLOSED_WIDTH = 68;
@@ -13,6 +14,7 @@ const CLOSED_WIDTH = 68;
 const NAV_ITEMS = [
     { text: 'Dashboard', icon: DashboardIcon, href: '/dashboard'},
     { text: 'Users', icon: PeopleIcon, href: '/users'},
+    { text: 'Organization', icon: BusinessIcon, href: '/organization'}
 ];
 
 export default function Sidebar({ open, onToggle }) {
