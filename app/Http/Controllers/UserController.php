@@ -14,7 +14,6 @@ class UserController extends Controller
     {
         $query = User::query();
 
-        $search = $request->input('search');
         $filter = $request->input('filter');
 
         if ($filter) {
@@ -31,7 +30,7 @@ class UserController extends Controller
             } elseif (str_starts_with($filter, 'custom:')) {
                 $parts = explode(':', $filter);
                 if (count($parts) === 3) {
-                    
+
                     $start = min($parts[1], $parts[2]);
                     $end   = max($parts[1], $parts[2]);
 
@@ -43,14 +42,66 @@ class UserController extends Controller
             }
         }
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                    ->orwhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('id', 'like', "%{$search}%");
+        if ($request->has('draw')) {
+
+            $recordsTotal = User::count();
+
+            $search = $request->input('search.value');
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orwhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('id', 'like', "%{$search}%");
+                });
+            }
+
+            $recordsFiltered = $query->count();
+
+            $columns = [
+                0 => 'id',
+                1 => 'first_name',
+                2 => 'last_name',
+                3 => 'email',
+                4 => 'phone',
+                5 => 'created_at',
+            ];
+
+            $orderColumn = $request->input('order.0.column');
+            $orderDirection = $request->input('order.0.dir', 'desc');
+
+            if (isset($columns[$orderColumn])) {
+                $query->orderBy(
+                    $columns[$orderColumn],
+                    $orderDirection === 'asc' ? 'asc' : 'desc'
+                );
+            } else {
+                $query->orderBy('created_at', 'desc');
+            }
+
+            $start = (int) $request->input('start', 0);
+            $length = (int) $request->input('length', 10);
+
+            $users = $query
+                ->skip($start)
+                ->take($length)
+                ->get();
+
+            $users->transform(function ($user) {
+                $user->date = $user->created_at->format('d M Y');
+                $user->time = $user->created_at->format('h:i A');
+
+                return $user;
             });
+
+            return response()->json([
+                'draw' => (int) $request->input('draw'),
+                'recordsTotal' => $recordsTotal,
+                'recordsFiltered' => $recordsFiltered,
+                'data' => $users,
+            ]);
         }
 
         $users = $query->orderby('created_at', 'desc')->paginate(10)->withQueryString();

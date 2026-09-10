@@ -1,3 +1,4 @@
 npm install @mantine/hooks@7.17.1
 npm install react-icons
 npm install react-datepicker classnames
+npm install datatables.net-react datatables.net-dt
