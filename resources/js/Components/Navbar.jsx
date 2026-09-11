@@ -66,7 +66,7 @@ export default function Navbar({ open, onMobileToggle }) {
                                 width: 34,
                                 height: 34,
                                 borderRadius: '10px',
-                                backgroundColor: '#7C3AED',
+                                backgroundColor: '#6C38CC',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -87,7 +87,7 @@ export default function Navbar({ open, onMobileToggle }) {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
 
                     <IconButton onClick={handleProfileMenuOpen} size="small" sx={{ ml: 0.5 }}>
-                        <Avatar sx={{ width: 34, height: 34, bgcolor: '#7C3AED', fontSize: 14, fontWeight: 600 }}>
+                        <Avatar sx={{ width: 34, height: 34, bgcolor: '#6C38CC', fontSize: 14, fontWeight: 600 }}>
                             {user?.name ? user.name[0].toUpperCase() : 'U'}
                         </Avatar>
                     </IconButton>
