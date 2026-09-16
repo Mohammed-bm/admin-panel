@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react';
 import { FiSearch } from 'react-icons/fi';
 
-export default function TableSearchInput({ activeSearch = '', onSearch }) {
+export default function TableSearchInput({ activeSearch = '', onSearch, placeholder = "Search..." }) {
     // 1. Local state only for typing
     const [searchValue, setSearchValue] = useState(activeSearch);
 
     // 2. Keep local input in sync if parent changes activeSearch externally
     useEffect(() => {
-        setSearchValue(activeSearch);
-    }, [activeSearch]);
+        const handler = setTimeout(() => {
+            if (searchValue !== activeSearch) {
+                onSearch?.(searchValue);
+            }
+        }, 400); // Wait 400ms after user stops typing
+
+        return () => clearTimeout(handler);
+    }, [searchValue]);
 
     const handleSearch = (e) => {
         const val = e.target.value;
@@ -22,7 +28,7 @@ export default function TableSearchInput({ activeSearch = '', onSearch }) {
             <input
                 type="text"
                 value={searchValue}
-                placeholder="search by name, email_id, phone, date etc..."
+                placeholder={placeholder}
                 onChange={handleSearch}
                 className="w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />

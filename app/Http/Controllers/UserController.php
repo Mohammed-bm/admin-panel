@@ -71,9 +71,10 @@ class UserController extends Controller
         // Pagination
         $users = $query
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate($request->input('per_page', 10))
+            ->withQueryString();
 
-        $users->transform(function ($user) {
+        $users->getCollection()->transform(function ($user) {
             $user->date = $user->created_at->format('d M Y');
             $user->time = $user->created_at->format('h:i A');
 
@@ -85,6 +86,8 @@ class UserController extends Controller
             'filters' => $request->only([
                 'search',
                 'filter',
+                'page',
+                'per_page',
             ]),
         ]);
     }
