@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { router, Head } from '@inertiajs/react';
+import Pagination from '@/Components/DataTable/Pagination';
 import { useRef } from 'react';
 
 import { TableSearchInput, TableFilterDropdown, TableView } from '@/components/DataTable';
@@ -12,10 +13,16 @@ export default function Index({ users, filters = {} }) {
 
     const currentPage = users.current_page || 1;
     const currentPerPage = users.per_page || 10;
+    const lastPage = users.last_page || 1;
+
+    const tableData = users.data.map((user, index) => ({
+        ...user,
+        row_number: (currentPage - 1) * currentPerPage + index + 1,
+    }));
 
     const columns = [
         {
-            data: null, title: '#', orderable: false, searchable: false, render: (data, type, row, meta) => { return (currentPage - 1) * currentPerPage + meta.row + 1; },
+            data: 'row_number', title: '#', orderable: false, searchable: false,
         },
         { data: 'id', title: 'User ID' },
         { data: 'first_name', title: 'First Name' },
@@ -142,16 +149,24 @@ export default function Index({ users, filters = {} }) {
                     </div>
 
                     {/* SEPARATE LOCATION 3: Dedicated Table Container */}
-                    <div className="bg-white px-4 rounded-xl border border-gray-200/80 shadow-sm">
-
+                    <div>
                         {/* Placed standalone in Table Section */}
                         <TableView
                             ref={tableRef}
                             columns={columns}
-                            data={users}
+                            data={tableData}
+                        />
+                    </div>
+                    <div className="bg-white px-4 rounded-xl border border-gray-200/80 shadow-sm">
+                        <Pagination
+                            currentPage={currentPage}
+                            lastPage={lastPage}
+                            total={users.total || 0}
+                            perPage={currentPerPage}
                             onPageChange={handlePageChange}
                             onLengthChange={handleLengthChange}
                         />
+
                     </div>
 
                 </div>

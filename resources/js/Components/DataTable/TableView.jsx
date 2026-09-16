@@ -1,48 +1,11 @@
 import { forwardRef, useEffect, useRef, useImperativeHandle } from 'react';
 import DataTable from 'datatables.net-react';
 
-const TableView = forwardRef(({ columns = [], data = [], onPageChange, onLengthChange }, ref) => {
+const TableView = forwardRef(({ columns = [], data = [] }, ref) => {
     const tableData = Array.isArray(data) ? data : (data?.data || []);
-    const totalRecords = data?.total || 0;
-    const currentPage = data?.current_page || 1;
-    const perPage = data?.per_page || 10;
 
     const localRef = useRef(null);
     useImperativeHandle(ref, () => localRef.current);
-
-    const onPageChangeRef = useRef(onPageChange);
-    const onLengthChangeRef = useRef(onLengthChange);
-    const currentPageRef = useRef(currentPage);
-    const requestedPageRef = useRef(currentPage);
-
-    // Refs for values captured by the (stale) ajax closure - always read current values
-    const tableDataRef = useRef(tableData);
-    const totalRecordsRef = useRef(totalRecords);
-    const perPageRef = useRef(perPage);
-
-    tableDataRef.current = tableData;
-    totalRecordsRef.current = totalRecords;
-    perPageRef.current = perPage;
-
-    // Force DataTables to redraw when Inertia sends new server data.
-    // In serverSide mode dt.draw() triggers the ajax callback, which now
-    // reads current values from the refs above.
-    useEffect(() => {
-        if (!localRef.current) return;
-
-        const dt = localRef.current.dt();
-
-        if (!dt) return;
-
-        dt.draw(false);
-    }, [data]);
-
-    useEffect(() => {
-        onPageChangeRef.current = onPageChange;
-        onLengthChangeRef.current = onLengthChange;
-        currentPageRef.current = currentPage;
-        requestedPageRef.current = currentPage;
-    }, [onPageChange, onLengthChange, currentPage]);
 
     return (
         <div className="w-full 
@@ -108,88 +71,35 @@ const TableView = forwardRef(({ columns = [], data = [], onPageChange, onLengthC
             [&_table.dataTable_thead_th]:!text-center"
         >
             <DataTable
-    ref={localRef}
-    columns={columns}
-    className="w-full overflow-x-auto"
-    options={{
-        serverSide: true,
-    processing: false,
+                ref={localRef}
+                columns={columns}
+                data={tableData}
+                className="w-full overflow-x-auto"
+                options={{
+                    processing: false,
 
-    pageLength: perPage,
 
-    searching: false,
-    lengthChange: true,
-    info: true,
-    paging: true,
-    autoWidth: false,
+                    searching: false,
+                    lengthChange: false,
+                    info: true,
+                    paging: false,
+                    autoWidth: false,
 
-        ajax: (dtParams, callback) => {
 
-            const requestedPage =
-                Math.floor(
-                    dtParams.start / dtParams.length
-                ) + 1;
 
-            const requestedLength =
-                dtParams.length;
+                    layout: {
+                        topStart: null,
+                        topEnd: null,
+                        bottomStart: null,
+                        bottomEnd: null,
+                    },
 
-            // PAGE CHANGED
-            if (
-                requestedPage !==
-                    currentPageRef.current &&
-                requestedPage !==
-                    requestedPageRef.current
-            ) {
-
-                requestedPageRef.current =
-                    requestedPage;
-
-                onPageChangeRef.current?.(
-                    requestedPage
-                );
-
-                return;
-            }
-
-            // LENGTH CHANGED
-            if (
-                requestedLength !== perPageRef.current
-            ) {
-
-                onLengthChangeRef.current?.(
-                    requestedLength
-                );
-
-                return;
-            }
-
-            // GIVE CURRENT DATA TO DATATABLE
-            callback({
-                draw: dtParams.draw,
-                recordsTotal: totalRecordsRef.current,
-                recordsFiltered: totalRecordsRef.current,
-                data: tableDataRef.current,
-            });
-        },
-
-        layout: {
-            topStart: null,
-            topEnd: null,
-            bottomStart: null,
-            bottom: [
-                'pageLength',
-                'paging',
-                'info'
-            ],
-            bottomEnd: null,
-        },
-
-        language: {
-            lengthMenu: 'Show _MENU_',
-            info: 'View _START_ - _END_ of _TOTAL_ List',
-        },
-    }}
->
+                    language: {
+                        lengthMenu: 'Show _MENU_',
+                        info: 'View _START_ - _END_ of _TOTAL_ List',
+                    },
+                }}
+            >
                 <thead>
                     <tr>
                         {columns.map((column, index) => (
