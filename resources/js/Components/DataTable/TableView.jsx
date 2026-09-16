@@ -1,7 +1,6 @@
 import { forwardRef, useEffect, useRef, useImperativeHandle } from 'react';
 import DataTable from 'datatables.net-react';
 
-
 const TableView = forwardRef(({ columns = [], data = [], onPageChange, onLengthChange }, ref) => {
     const tableData = Array.isArray(data) ? data : (data?.data || []);
     const totalRecords = data?.total || 0;
@@ -14,22 +13,36 @@ const TableView = forwardRef(({ columns = [], data = [], onPageChange, onLengthC
     const onPageChangeRef = useRef(onPageChange);
     const onLengthChangeRef = useRef(onLengthChange);
     const currentPageRef = useRef(currentPage);
+    const requestedPageRef = useRef(currentPage);
+
+    // Refs for values captured by the (stale) ajax closure - always read current values
+    const tableDataRef = useRef(tableData);
+    const totalRecordsRef = useRef(totalRecords);
+    const perPageRef = useRef(perPage);
+
+    tableDataRef.current = tableData;
+    totalRecordsRef.current = totalRecords;
+    perPageRef.current = perPage;
+
+    // Force DataTables to redraw when Inertia sends new server data.
+    // In serverSide mode dt.draw() triggers the ajax callback, which now
+    // reads current values from the refs above.
+    useEffect(() => {
+        if (!localRef.current) return;
+
+        const dt = localRef.current.dt();
+
+        if (!dt) return;
+
+        dt.draw(false);
+    }, [data]);
 
     useEffect(() => {
         onPageChangeRef.current = onPageChange;
         onLengthChangeRef.current = onLengthChange;
         currentPageRef.current = currentPage;
+        requestedPageRef.current = currentPage;
     }, [onPageChange, onLengthChange, currentPage]);
-
-    // Force DataTables to redraw when Inertia sends new server data
-    useEffect(() => {
-        if (localRef.current) {
-            const dt = localRef.current.dt ? localRef.current.dt() : null;
-            if (dt) {
-                dt.ajax.reload(null, false); // Reload DataTables internal ajax callback without resetting pagination
-            }
-        }
-    }, [data]);
 
     return (
         <div className="w-full 
@@ -95,52 +108,88 @@ const TableView = forwardRef(({ columns = [], data = [], onPageChange, onLengthC
             [&_table.dataTable_thead_th]:!text-center"
         >
             <DataTable
-                ref={localRef}
-                columns={columns}
-                data={tableData}
-                className="w-full overflow-x-auto"
-                options={{
-                    serverSide: true,
-                    processing: false,
-                    pageLength: perPage,
-                    displayStart: (currentPage - 1) * perPage,
-                    searching: false,
-                    lengthChange: true,
-                    info: true,
-                    paging: true,
-                    autoWidth: false,
-                    ajax: (dtParams, callback) => {
-                        const requestedPage = Math.floor(dtParams.start / dtParams.length) + 1;
-                        const requestedLength = dtParams.length;
+    ref={localRef}
+    columns={columns}
+    className="w-full overflow-x-auto"
+    options={{
+        serverSide: true,
+    processing: false,
 
-                        if (requestedPage !== currentPageRef.current && onPageChangeRef.current) {
-                            onPageChangeRef.current(requestedPage);
-                        }
+    pageLength: perPage,
 
-                        if (requestedLength !== perPage && onLengthChangeRef.current) {
-                            onLengthChangeRef.current(requestedLength);
-                        }
+    searching: false,
+    lengthChange: true,
+    info: true,
+    paging: true,
+    autoWidth: false,
 
-                        callback({
-                            draw: dtParams.draw,
-                            recordsTotal: totalRecords,
-                            recordsFiltered: totalRecords,
-                            data: tableData,
-                        });
-                    },
-                    layout: {
-                        topStart: null,
-                        topEnd: null,
-                        bottomStart: null,
-                        bottom: ['pageLength', 'paging', 'info'],
-                        bottomEnd: null,
-                    },
-                    language: {
-                        lengthMenu: "Show _MENU_",
-                        info: "View _START_ - _END_ of _TOTAL_ List",
-                    },
-                }}
-            >
+        ajax: (dtParams, callback) => {
+
+            const requestedPage =
+                Math.floor(
+                    dtParams.start / dtParams.length
+                ) + 1;
+
+            const requestedLength =
+                dtParams.length;
+
+            // PAGE CHANGED
+            if (
+                requestedPage !==
+                    currentPageRef.current &&
+                requestedPage !==
+                    requestedPageRef.current
+            ) {
+
+                requestedPageRef.current =
+                    requestedPage;
+
+                onPageChangeRef.current?.(
+                    requestedPage
+                );
+
+                return;
+            }
+
+            // LENGTH CHANGED
+            if (
+                requestedLength !== perPageRef.current
+            ) {
+
+                onLengthChangeRef.current?.(
+                    requestedLength
+                );
+
+                return;
+            }
+
+            // GIVE CURRENT DATA TO DATATABLE
+            callback({
+                draw: dtParams.draw,
+                recordsTotal: totalRecordsRef.current,
+                recordsFiltered: totalRecordsRef.current,
+                data: tableDataRef.current,
+            });
+        },
+
+        layout: {
+            topStart: null,
+            topEnd: null,
+            bottomStart: null,
+            bottom: [
+                'pageLength',
+                'paging',
+                'info'
+            ],
+            bottomEnd: null,
+        },
+
+        language: {
+            lengthMenu: 'Show _MENU_',
+            info: 'View _START_ - _END_ of _TOTAL_ List',
+        },
+    }}
+>
                 <thead>
                     <tr>
                         {columns.map((column, index) => (

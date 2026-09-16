@@ -12,7 +12,6 @@ export default function Index({ users, filters = {} }) {
 
     const currentPage = users.current_page || 1;
     const currentPerPage = users.per_page || 10;
-    const tableData = users.data || [];
 
     const columns = [
         {
@@ -48,6 +47,7 @@ export default function Index({ users, filters = {} }) {
     const { search = '', filter = '' } = filters;
 
     const updateParams = (newParams) => {
+        console.log('UPDATE PARAMS:', newParams);
         const isFilterOrSearch = 'search' in newParams || 'filter' in newParams;
 
         const query = {
@@ -63,6 +63,7 @@ export default function Index({ users, filters = {} }) {
             if (!query[key]) delete query[key];
         });
 
+        console.log('ROUTER.GET /users:', query);
         router.get('/users', query, {
             preserveState: true,
             preserveScroll: true,
@@ -91,6 +92,7 @@ export default function Index({ users, filters = {} }) {
     };
 
     const handlePageChange = (page) => {
+        console.log('PAGE CHANGE CALLED:', page);
         updateParams({ page });
     };
 
@@ -147,7 +149,6 @@ export default function Index({ users, filters = {} }) {
                             ref={tableRef}
                             columns={columns}
                             data={users}
-                            pagination={users}
                             onPageChange={handlePageChange}
                             onLengthChange={handleLengthChange}
                         />
