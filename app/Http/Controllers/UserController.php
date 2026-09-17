@@ -68,7 +68,6 @@ class UserController extends Controller
             });
         }
 
-        // Pagination
         $users = $query
             ->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 10))

@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, useImperativeHandle } from 'react';
 import DataTable from 'datatables.net-react';
 
-const TableView = forwardRef(({ columns = [], data = [] }, ref) => {
+const TableView = forwardRef(({ columns = [], data = [], slots = {} }, ref) => {
     const tableData = Array.isArray(data) ? data : (data?.data || []);
 
     const localRef = useRef(null);
@@ -75,25 +75,20 @@ const TableView = forwardRef(({ columns = [], data = [] }, ref) => {
                 columns={columns}
                 data={tableData}
                 className="w-full overflow-x-auto"
+                slots={slots}
                 options={{
                     processing: false,
-
-
                     searching: false,
                     lengthChange: false,
                     info: true,
                     paging: false,
                     autoWidth: false,
-
-
-
                     layout: {
                         topStart: null,
                         topEnd: null,
                         bottomStart: null,
                         bottomEnd: null,
                     },
-
                     language: {
                         lengthMenu: 'Show _MENU_',
                         info: 'View _START_ - _END_ of _TOTAL_ List',

@@ -59,7 +59,10 @@ const Pagination = ({
                 <button
                     className="w-8 h-8 flex items-center justify-center rounded-full text-purple-700 hover:bg-purple-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed text-lg font-semibold"
                     disabled={currentPage === 1}
-                    onClick={() => onPageChange(currentPage - 1)}
+                    onClick={() => {
+                        console.log('PREVIOUS CLICK:', currentPage - 1);
+                        onPageChange(currentPage - 1);
+                    }}
                 >
                     ‹
                 </button>
@@ -79,7 +82,10 @@ const Pagination = ({
                     return (
                         <button
                             key={page}
-                            onClick={() => onPageChange(page)}
+                            onClick={() => {
+                                console.log('PAGINATION CLICK:', page);
+                                onPageChange(page);
+                            }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full ${currentPage === page
                                 ? 'bg-purple-700 text-white font-medium'
                                 : 'hover:bg-gray-50'
@@ -93,7 +99,10 @@ const Pagination = ({
                 <button
                     className="w-8 h-8 flex items-center justify-center rounded-full text-purple-700 hover:bg-purple-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed text-lg font-semibold"
                     disabled={currentPage === lastPage}
-                    onClick={() => onPageChange(currentPage + 1)}
+                    onClick={() => {
+                        console.log('NEXT CLICK:', currentPage + 1);
+                        onPageChange(currentPage + 1);
+                    }}
                 >
                     ›
                 </button>

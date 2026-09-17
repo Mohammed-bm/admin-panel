@@ -25,8 +25,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
-    Route::get('/users/data', [UserController::class, 'data'])->name('users.data');
     Route::get('/organization', [OrganizationController::class, 'index'])->name('organization.index');
+    Route::get('/organization/{organization}', [OrganizationController::class, 'show'])->name('organization.show');
 });
 
 require __DIR__.'/auth.php';

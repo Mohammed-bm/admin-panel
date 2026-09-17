@@ -1,26 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FiSearch } from 'react-icons/fi';
 
-export default function TableSearchInput({ activeSearch = '', onSearch, placeholder = "Search..." }) {
+export default function TableSearchInput({activeSearch = '', onSearch, placeholder = "Search..." }) {
     // 1. Local state only for typing
     const [searchValue, setSearchValue] = useState(activeSearch);
+    const onSearchRef = useRef(onSearch);
 
-    // 2. Keep local input in sync if parent changes activeSearch externally
+    useEffect(() => { onSearchRef.current = onSearch; }, [onSearch]);
+
+    const isFirstRender = useRef(true);
+
+    // 2. Debounce trigger to parent
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+
         const handler = setTimeout(() => {
-            if (searchValue !== activeSearch) {
-                onSearch?.(searchValue);
-            }
-        }, 400); // Wait 400ms after user stops typing
+            onSearch?.(searchValue);
+        }, 400);
 
         return () => clearTimeout(handler);
     }, [searchValue]);
 
+    // 3. Handle keystrokes (ONLY updates local state)
     const handleSearch = (e) => {
-        const val = e.target.value;
-        setSearchValue(val);
-        onSearch?.(val); // Send value back to parent
-    };
+        setSearchValue(e.target.value);
+    }
 
     return (
         <div className="relative w-80">

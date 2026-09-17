@@ -69,8 +69,8 @@ export default function Index({ users, filters = {} }) {
         Object.keys(query).forEach((key) => {
             if (!query[key]) delete query[key];
         });
+        console.log('FINAL QUERY:', query);
 
-        console.log('ROUTER.GET /users:', query);
         router.get('/users', query, {
             preserveState: true,
             preserveScroll: true,
@@ -99,7 +99,7 @@ export default function Index({ users, filters = {} }) {
     };
 
     const handlePageChange = (page) => {
-        console.log('PAGE CHANGE CALLED:', page);
+        console.log('HANDLE PAGE CHANGE:', page);
         updateParams({ page });
     };
 
