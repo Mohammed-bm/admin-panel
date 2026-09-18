@@ -74,8 +74,7 @@ class UserController extends Controller
             ->withQueryString();
 
         $users->getCollection()->transform(function ($user) {
-            $user->date = $user->created_at->format('d M Y');
-            $user->time = $user->created_at->format('h:i A');
+            $user->date = $user->created_at->format('h:i A, d M Y');
 
             return $user;
         });

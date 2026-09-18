@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Models\Organization;
+use App\Models\PaymentStatus;
 use Illuminate\Support\Carbon;
 use App\Models\StripeSubscription;
+use App\Models\organization_capacities;
 
 class OrganizationController extends Controller
 {
@@ -79,8 +81,7 @@ class OrganizationController extends Controller
             ->withQueryString();
 
         $organizations->getCollection()->transform(function ($org) {
-            $org->date = $org->created_at ? $org->created_at->format('d M Y') : null;
-            $org->time = $org->created_at ? $org->created_at->format('h:i A') : null;
+            $org->date = $org->created_at ? $org->created_at->format('h:i A, d M Y') : null;
 
             return $org;
         });
@@ -100,30 +101,68 @@ class OrganizationController extends Controller
         $subscriptions = StripeSubscription::where(
             'organization_id',
             $organization->id
-        )->get()
+        )->orderBy('created_at', 'desc')
+            ->get()
             ->map(function ($subscription) {
                 $subscription->trial_ends_at = $subscription->trial_ends_at
-                    ? Carbon::parse($subscription->trial_ends_at)->format('M j, Y')
+                    ? Carbon::parse($subscription->trial_ends_at)->format('g:i A, M j, Y')
                     : null;
 
                 $subscription->ends_at = $subscription->ends_at
-                    ? Carbon::parse($subscription->ends_at)->format('M j, Y')
+                    ? Carbon::parse($subscription->ends_at)->format('g:i A, M j, Y')
                     : null;
 
                 $subscription->created_date = $subscription->created_at
-                    ? $subscription->created_at->format('M j, Y')
+                    ? $subscription->created_at->format('g:i A, M j, Y')
                     : null;
 
                 $subscription->updated_date = $subscription->updated_at
-                    ? $subscription->updated_at->format('M j, Y')
+                    ? $subscription->updated_at->format('g:i A, M j, Y')
                     : null;
 
                 return $subscription;
             });
 
+
+        $payments = PaymentStatus::where(
+            'organization_id',
+            $organization->id
+        )->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($payments) {
+                $payments->created_date = $payments->created_at
+                    ? $payments->created_at->format('g:i A, M j, Y')
+                    : null;
+
+                $payments->updated_date = $payments->updated_at
+                    ? $payments->updated_at->format('g:i A, M j, Y')
+                    : null;
+
+                return $payments;
+            });
+
+        $credits = organization_capacities::where(
+            'organization_id',
+            $organization->id
+        )->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($credit) {
+                $credit->created_date = $credit->created_at
+                    ? $credit->created_at->format('g:i A, M j, Y')
+                    : null;
+
+                $credit->updated_date = $credit->updated_at
+                    ? $credit->updated_at->format('g:i A, M j, Y')
+                    : null;
+
+                return $credit;
+            });
+
         return Inertia::render('Organization/Show', [
             'organization' => $organization,
             'subscriptions' => $subscriptions,
+            'payments' => $payments,
+            'credits' => $credits
         ]);
     }
 }

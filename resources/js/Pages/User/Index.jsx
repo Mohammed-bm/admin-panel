@@ -30,7 +30,6 @@ export default function Index({ users, filters = {} }) {
         { data: 'email', title: 'Email' },
         { data: 'phone', title: 'Phone' },
         { data: 'date', title: 'Date' },
-        { data: 'time', title: 'Time' },
         {
             data: 'profile_completed',
             title: 'Profile Created',

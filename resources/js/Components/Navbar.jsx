@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import {
     AppBar,
     Toolbar,
@@ -24,6 +24,11 @@ export default function Navbar({ open, onMobileToggle }) {
 
     const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget);
     const handleProfileMenuClose = () => setAnchorEl(null);
+
+    const handleLogout = () => {
+        handleProfileMenuClose();
+        router.post(route('logout'));
+    };
 
     return (
         <AppBar
@@ -133,9 +138,7 @@ export default function Navbar({ open, onMobileToggle }) {
                             Profile
                         </MenuItem>
                         <MenuItem
-                            component={Link}
-                            href={route('logout')}
-                            method="post"
+                            onClick={handleLogout}
                             as="button"
                             sx={{ color: '#EF4444', width: '100%' }}
                         >

@@ -34,7 +34,6 @@ export default function Index({ organizations, filters = {} }) {
         { data: 'plan', title: 'Plan' },
         { data: 'balance', title: 'Balance', render: (data) => data ? `$${(Math.floor(parseFloat(data) * 100) / 100).toFixed(2)}` : '$0.00' },
         { data: 'date', title: 'Date' },
-        { data: 'time', title: 'Time' },
         {
             data: null,
             name: 'action',
