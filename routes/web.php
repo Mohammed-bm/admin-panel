@@ -27,6 +27,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::get('/organization', [OrganizationController::class, 'index'])->name('organization.index');
     Route::get('/organization/{organization}', [OrganizationController::class, 'show'])->name('organization.show');
+    Route::get('/organization/{organization}/plan', [OrganizationController::class, 'editPlan'])
+        ->name('organization.plan');
+    Route::post(
+        '/organization/{organization}/assign-plan',
+        [OrganizationController::class, 'assignPlan']
+    )->name('organization.assignPlan');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

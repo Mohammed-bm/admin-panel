@@ -1,17 +1,32 @@
 import React from "react";
 import { router, Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import Pagination from '@/Components/DataTable/Pagination';
+import EditPlanModal from '@/Components/EditPlanModal';
 
 import "react-datepicker/dist/react-datepicker.css";
-import { FiEye } from 'react-icons/fi';
+import { FiEye, FiRepeat } from 'react-icons/fi';
 
 import { TableSearchInput, TableFilterDropdown, TableView } from '@/components/DataTable';
 
-export default function Index({ organizations, filters = {} }) {
+export default function Index({ organizations, filters = {}, plans = [] }) {
 
     const tableRef = useRef(null);
+
+    // Modal state
+    const [selectedOrganization, setSelectedOrganization] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleOpenPlanModal = (organization) => {
+        setSelectedOrganization(organization);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedOrganization(null);
+    };
 
     const currentPage = organizations.current_page || 1;
     const currentPerPage = organizations.per_page || 10;
@@ -43,12 +58,24 @@ export default function Index({ organizations, filters = {} }) {
 
     const slots = {
         action: (data, row) => (
-            <button
-                type="button"
-                onClick={() => router.visit(`/organization/${row.id}`)}
-            >
-                <FiEye size={18} />
-            </button>
+            <div className="flex items-center gap-3">
+                {/* View Organization */}
+                <button
+                    type="button"
+                    onClick={() => router.visit(`/organization/${row.id}`)}
+                >
+                    <FiEye size={18} />
+                </button>
+
+                {/* Change Plan */}
+                <button
+                    type="button"
+                    onClick={() => handleOpenPlanModal(row)}
+                    
+                >
+                    <FiRepeat size={18} />
+                </button>
+            </div>
         ),
     };
 
@@ -166,6 +193,12 @@ export default function Index({ organizations, filters = {} }) {
                     </div>
                 </div>
             </div>
+            <EditPlanModal
+                isOpen={isModalOpen}
+                organization={selectedOrganization}
+                plans={plans}
+                onClose={handleCloseModal}
+            />
         </AuthenticatedLayout>
     );
 };

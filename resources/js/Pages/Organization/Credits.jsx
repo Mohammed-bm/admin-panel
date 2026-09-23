@@ -109,7 +109,7 @@ export default function Credits({ credits = [] }) {
                                                 </td>
                                                 <td className="px-6 py-2.5 font-mono text-right font-semibold text-gray-900">
                                                     {val === -1
-                                                        ? 'Disabled'
+                                                        ? 'Unlimited'
                                                         : val
                                                     }
                                                 </td>

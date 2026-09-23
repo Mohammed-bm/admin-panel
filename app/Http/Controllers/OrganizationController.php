@@ -5,14 +5,24 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
-use App\Models\Organization;
 use App\Models\PaymentStatus;
 use Illuminate\Support\Carbon;
 use App\Models\StripeSubscription;
-use App\Models\organization_capacities;
+use App\Models\OrganizationCapacity;
+use App\Models\User;
+use App\Models\Plan;
+use App\Models\PlanAllowance;
+use App\Models\AuditLog;
+use App\Models\Organization;
+use App\Services\SubscriptionProvisioningService;
+
+use Illuminate\Support\Facades\Log;
 
 class OrganizationController extends Controller
 {
+    public function __construct(
+        private SubscriptionProvisioningService $subscriptionProvisioningService
+    ) {}
     public function index(Request $request)
     {
         $query = Organization::query()
@@ -86,8 +96,11 @@ class OrganizationController extends Controller
             return $org;
         });
 
+        $plans = Plan::where('is_active', true)->get();
+
         return Inertia::render('Organization/Index', [
             'organizations' => $organizations,
+            'plans' => $plans,
             'filters' => $request->only([
                 'search',
                 'filter',
@@ -141,7 +154,7 @@ class OrganizationController extends Controller
                 return $payments;
             });
 
-        $credits = organization_capacities::where(
+        $credits = OrganizationCapacity::where(
             'organization_id',
             $organization->id
         )->orderBy('created_at', 'desc')
@@ -164,5 +177,122 @@ class OrganizationController extends Controller
             'payments' => $payments,
             'credits' => $credits
         ]);
+    }
+    public function assignPlan(Request $request, Organization $organization)
+    {
+        try {
+            // 2. resolve user
+            $userId = $request->input('user_id');
+
+            if ($userId) {
+                $user = User::find($userId);
+
+                if (!$user) {
+                    return back()->withErrors([
+                        'user_id' => 'User not found'
+                    ]);
+                }
+            } else {
+                $capacity = OrganizationCapacity::where(
+                    'organization_id',
+                    $organization->id
+                )->first();
+
+                if (!$capacity) {
+                    return back()->withErrors([
+                        'user_id' => 'No user found for this organization'
+                    ]);
+                }
+
+                $userId = $capacity->user_id;
+
+                if (!$userId) {
+                    return back()->withErrors([
+                        'user_id' => 'No user found for this organization'
+                    ]);
+                }
+            }
+
+            // 3. find plan
+            $planId = $request->input('plan_id');
+
+            $plan = Plan::where('id', $planId)
+                ->where('is_active', true)
+                ->first();
+
+            if (!$plan) {
+                return back()->withErrors([
+                    'plan_id' => 'Plan not found or not active'
+                ]);
+            }
+
+            // 4. check current plan
+            $allowances = PlanAllowance::where(
+                'plan_id',
+                $plan->id
+            )->get();
+
+            if ($allowances->isEmpty()) {
+                return back()->withErrors([
+                    'plan_id' => 'This plan has no allowances'
+                ]);
+            }
+
+            // 5. call SubscriptionProvisioningService
+            if ($organization->plan === $plan->slug) {
+                return back()->withErrors([
+                    'plan_id' => 'Organization is already on this plan'
+                ]);
+            }
+
+            // 6. create audit log
+            $oldPlan = $organization->plan;
+
+            // 7. return response
+            $this->subscriptionProvisioningService->provisionPlan(
+                $userId,
+                $organization->id,
+                $plan->slug,
+                null,
+                'admin_assignment',
+                'admin-' . $organization->id . '-' . uniqid()
+            );
+
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'organization_id' => $organization->id,
+                'app_id' => null,
+                'action' => 'Plan Assigned',
+                'subject_type' => 'Organization',
+                'description' => "Assigned plan '{$plan->name}' to organization {$organization->id}",
+                'old_values' => [
+                    'plan' => $oldPlan,
+                ],
+                'new_values' => [
+                    'plan' => $plan->slug,
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            return back()->with(
+                'success',
+                'Plan assigned successfully'
+            );
+        } catch (\Throwable $e) {
+
+            // Step 10: Log unexpected error
+
+            Log::error('Admin plan assignment failed', [
+                'organization_id' => $organization->id,
+                'user_id' => $userId ?? null,
+                'plan_id' => $plan->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'plan_id' => 'Plan assignment failed'
+            ]);
+        }
     }
 }

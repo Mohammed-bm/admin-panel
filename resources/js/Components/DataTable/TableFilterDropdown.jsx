@@ -20,6 +20,9 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
     const [startDate, setStartDate] = useState(null);
     const [endDate, setEndDate] = useState(null);
 
+    const [showDateRangeButton, setShowDateRangeButton] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
     useEffect(() => {
         if (!activeFilter || typeof activeFilter !== 'string') {
             setSelected(null);
@@ -37,38 +40,60 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
     const handleSelect = (item) => {
         setSelected(item);
 
-        if (item.value !== 'custom') {
-            setStartDate(null);
-            setEndDate(null);
+        if (item.value === 'custom') {
+            setShowDateRangeButton(true);
+            setShowDatePicker(false);
             close();
-            onFilter?.(item.value);
+            return;
         }
+
+        setStartDate(null);
+        setEndDate(null);
+        setShowDateRangeButton(false);
+        setShowDatePicker(false);
+        close();
+        onFilter?.(item.value);
     };
 
     const handleDateChange = (dates) => {
         const [start, end] = dates;
-        setStartDate(start);
-        setEndDate(end);
+        setStartDate(end);
+        setEndDate(start);
 
         if (start && end) {
             const formattedStart = start.toISOString().split('T')[0];
             const formattedEnd = end.toISOString().split('T')[0];
+            setShowDatePicker(false);
+            setShowDateRangeButton(false);
             close();
             onDateFilter?.(formattedStart, formattedEnd);
         }
     };
 
     return (
-        <div className="relative">
+        <div className="relative flex items-center gap-2">
+            {/* Main Filter Button */}
             <button
                 onClick={toggle}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             >
                 <FiFilter className="w-4 h-4 text-gray-500" />
-                <span>{selected ? selected.name : "Filter"}</span>
-                <GoChevronDown className={classNames("transition-transform text-gray-400", { "rotate-180": opened })} />
+
+                <span>
+                    {selected ? selected.name : "Filter"}
+                </span>
+
+                <GoChevronDown
+                    className={classNames(
+                        "transition-transform text-gray-400",
+                        {
+                            "rotate-180": opened,
+                        }
+                    )}
+                />
             </button>
 
+            {/* Filter Dropdown */}
             {opened && (
                 <div className="absolute top-12 left-0 z-50 flex flex-col w-[300px] border border-gray-200 rounded-md shadow-lg bg-white">
                     <div className="w-full flex flex-col py-2 px-2 border-b border-gray-200">
@@ -78,27 +103,40 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
                                 onClick={() => handleSelect(item)}
                                 className={classNames(
                                     "w-full px-4 py-[10.5px] text-left text-sm rounded-md",
-                                    selected?.value === item.value ? "bg-[#EAEFFF] font-medium" : "hover:bg-[#F5F8FF]"
+                                    selected?.value === item.value
+                                        ? "bg-[#EAEFFF] font-medium"
+                                        : "hover:bg-[#F5F8FF]"
                                 )}
                             >
                                 {item.name}
                             </button>
                         ))}
                     </div>
+                </div>
+            )}
 
-                    {selected?.value === "custom" && (
-                        <div className="w-full p-2 max-h-[250px] overflow-y-auto">
-                            <div className="w-full overflow-x-auto rounded-lg border border-gray-300 [&_table.dataTable]:border-none [&_table.dataTable_tbody_td]:border-t [&_table.dataTable_tbody_td]:border-gray-100 [&_table.dataTable_thead_th]:border-b [&_.dt-layout-row]:!m-0">
-                                <DatePicker
-                                    onChange={handleDateChange}
-                                    startDate={startDate}
-                                    endDate={endDate}
-                                    selectsRange
-                                    inline
-                                />
-                            </div>
-                        </div>
-                    )}
+            {/* Select Range Button */}
+            {showDateRangeButton && (
+                <div className="relative">
+                    <button
+                        onClick={() => setShowDatePicker(true)}
+                        className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg shadow-md hover:bg-gray-50"
+                    >
+                        Select Range
+                    </button>
+                </div>
+            )}
+
+            {/* Date Picker */}
+            {showDatePicker && (
+                <div className="absolute top-12 left-0 z-50 border border-gray-200 rounded-md shadow-lg bg-white">
+                    <DatePicker
+                        onChange={handleDateChange}
+                        startDate={startDate}
+                        endDate={endDate}
+                        selectsRange
+                        inline
+                    />
                 </div>
             )}
         </div>

@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class organization_capacities extends Model
+class MailboxLicense extends Model
 {
     //
 }
