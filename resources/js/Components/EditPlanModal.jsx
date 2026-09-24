@@ -2,6 +2,7 @@ import React from 'react';
 import { useForm } from '@inertiajs/react';
 import PlanCard from '@/Components/PlanCard';
 import { FiX } from 'react-icons/fi';
+import Swal from 'sweetalert2';
 
 export default function EditPlanModal({ organization, plans, isOpen, onClose }) {
     // 1. Move hooks to top level (ALWAYS call hooks unconditionally)
@@ -21,6 +22,13 @@ export default function EditPlanModal({ organization, plans, isOpen, onClose }) 
         e.preventDefault();
         post(`/organization/${organization.id}/assign-plan`, {
             onSuccess: () => {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Plan Changed Successfully',
+                    text: 'The organization plan has been updated.',
+                    confirmButtonText: 'OK',
+                });
+
                 onClose();
             },
         });

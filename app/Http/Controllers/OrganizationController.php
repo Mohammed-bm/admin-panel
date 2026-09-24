@@ -15,13 +15,17 @@ use App\Models\PlanAllowance;
 use App\Models\AuditLog;
 use App\Models\Organization;
 use App\Services\SubscriptionProvisioningService;
+use App\Services\AdminSubscriptionService;
+use App\Services\AdminPaymentService;
 
 use Illuminate\Support\Facades\Log;
 
 class OrganizationController extends Controller
 {
     public function __construct(
-        private SubscriptionProvisioningService $subscriptionProvisioningService
+        private SubscriptionProvisioningService $subscriptionProvisioningService,
+        private AdminSubscriptionService $adminSubscriptionService,
+        private AdminPaymentService $adminPaymentService
     ) {}
     public function index(Request $request)
     {
@@ -256,6 +260,19 @@ class OrganizationController extends Controller
                 null,
                 'admin_assignment',
                 'admin-' . $organization->id . '-' . uniqid()
+            );
+
+            $this->adminPaymentService->createAdminGrantPayment(
+                $userId,
+                $organization->id,
+                null,
+                $plan->name,
+            );
+
+            $this->adminSubscriptionService->assignAdminSubscription(
+                $organization->id,
+                $userId,
+                $plan->name
             );
 
             AuditLog::create([
