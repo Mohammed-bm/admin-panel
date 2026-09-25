@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\MailboxLicenseBundle;
 
 class Organization extends Model
 {
@@ -36,24 +39,35 @@ class Organization extends Model
         ?string $appUuid = null,
         ?string $referenceId = null
     ) {
-        $balanceBefore = $this->balance;
-        $balanceAfter = $balanceBefore + $amount;
+        // Wrap everything in a database transaction for safety
+        return DB::transaction(function () use ($amount, $currency, $paymentMethod, $appUuid, $referenceId) {
 
-        $this->update([
-            'balance' => $balanceAfter,
-        ]);
+            $balanceBefore = $this->balance;
 
-        CreditTransaction::create([
-            'id'                => (string) Str::uuid(),
-            'organization_id'   => $this->id,
-            'transaction_type'  => 'topup',
-            'amount'            => $amount,
-            'balance_before'    => $balanceBefore,
-            'balance_after'     => $balanceAfter,
-            'currency'          => $currency,
-            'payment_method'    => $paymentMethod,
-            'app_uuid'          => $appUuid,
-            'reference_id'      => $referenceId,
-        ]);
+            // Safely increment the balance to prevent race conditions
+            $this->increment('balance', $amount);
+
+            // Refresh to get the true updated balance from the database
+            $this->refresh();
+            $balanceAfter = $this->balance;
+
+            // Create the transaction log
+            CreditTransaction::create([
+                'id'                => (string) Str::uuid(),
+                'organization_id'   => $this->id,
+                'transaction_type'  => 'topup',
+                'amount'            => $amount,
+                'balance_before'    => $balanceBefore,
+                'balance_after'     => $balanceAfter,
+                'currency'          => $currency,
+                'payment_method'    => $paymentMethod,
+                'app_uuid'          => $appUuid,
+                'reference_id'      => $referenceId,
+            ]);
+        });
+    }
+    public function licenseBundles()
+    {
+        return $this->hasMany(MailboxLicenseBundle::class, 'organization_id');
     }
 }

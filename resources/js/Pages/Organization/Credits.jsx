@@ -1,33 +1,49 @@
 import React from 'react';
+import { useEffect, useState } from 'react';
+import { router } from '@inertiajs/react';
+import Swal from 'sweetalert2';
+
+const featureLabels = {
+    webhooks: 'Webhooks',
+    api_requests: 'API Requests',
+    crm_contacts: 'CRM Contacts',
+    nest_mailsuit: 'MailSuite',
+    salesnest_crm: 'SalesNest CRM',
+    schedule_nest: 'ScheduleNest',
+    nest_e_docusign: 'E-Signatures',
+    email_validation: 'Email Validations',
+    phone_validation: 'Phone Validations',
+    priority_support: 'Priority Support',
+    user_invitations: 'User Invitations',
+    email_promotional: 'Promotional Emails',
+    email_transactional: 'Transactional Emails',
+    sms_promotional_us: 'Promotional SMS (US)',
+    sms_transactional_us: 'Transactional SMS (US)',
+    nest_meet_meetings: 'Meetings',
+    nestbot_ai_replies: 'AI Replies',
+    users_team_members: 'Team Members',
+    analytics_reporting: 'Analytics & Reporting',
+    web_push_notifications: 'Web Push Notifications',
+    mobile_push_notifications: 'Mobile Push Notifications',
+    dedicated_success_manager: 'Dedicated Success Manager',
+    role_based_permissions_users: 'Role-Based Permissions',
+    sla_support: 'SLA Support',
+};
+
+// Safe JSON parser
+const parseJson = (data) => {
+    if (!data) return {};
+    if (typeof data === 'object') return data;
+    try {
+        return JSON.parse(data);
+    } catch (e) {
+        return {};
+    }
+};
 
 export default function Credits({ credits = [] }) {
-
-    const featureLabels = {
-        webhooks: 'Webhooks',
-        api_requests: 'API Requests',
-        crm_contacts: 'CRM Contacts',
-        nest_mailsuit: 'MailSuite',
-        salesnest_crm: 'SalesNest CRM',
-        schedule_nest: 'ScheduleNest',
-        nest_e_docusign: 'E-Signatures',
-        email_validation: 'Email Validations',
-        phone_validation: 'Phone Validations',
-        priority_support: 'Priority Support',
-        user_invitations: 'User Invitations',
-        email_promotional: 'Promotional Emails',
-        email_transactional: 'Transactional Emails',
-        sms_promotional_us: 'Promotional SMS (US)',
-        sms_transactional_us: 'Transactional SMS (US)',
-        nest_meet_meetings: 'Meetings',
-        nestbot_ai_replies: 'AI Replies',
-        users_team_members: 'Team Members',
-        analytics_reporting: 'Analytics & Reporting',
-        web_push_notifications: 'Web Push Notifications',
-        mobile_push_notifications: 'Mobile Push Notifications',
-        dedicated_success_manager: 'Dedicated Success Manager',
-        role_based_permissions_users: 'Role-Based Permissions',
-        sla_support: 'SLA Support',
-    };
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedCapacities, setEditedCapacities] = useState({});
 
     const creditData = Array.isArray(credits) ? credits[0] : credits;
 
@@ -39,19 +55,13 @@ export default function Credits({ credits = [] }) {
         );
     }
 
-    // Safe JSON parser
-    const parseJson = (data) => {
-        if (!data) return {};
-        if (typeof data === 'object') return data;
-        try {
-            return JSON.parse(data);
-        } catch (e) {
-            return {};
-        }
-    };
-
+    // Moved up so it's defined before being used in useEffect
     const capacities = parseJson(creditData.capacities);
     const usage = parseJson(creditData.usage);
+
+    useEffect(() => {
+        setEditedCapacities(capacities);
+    }, [creditData?.capacities]);
 
     return (
         <div className="space-y-6">
@@ -88,8 +98,47 @@ export default function Credits({ credits = [] }) {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Capacities Card */}
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <div className="border-b border-gray-200 bg-gray-50/75 px-6 py-3.5">
+                    {/* Fixed 'item-center' to 'items-center' */}
+                    <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50/75 px-6 py-3.5">
                         <h3 className="font-semibold text-gray-900 text-sm">Plan Limits</h3>
+                        {isEditing ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    router.patch(
+                                        `/organization/${creditData.organization_id}/capacity`,
+                                        {
+                                            capacities: editedCapacities,
+                                        },
+                                        {
+                                            onSuccess: () => {
+                                                setIsEditing(false);
+
+                                                Swal.fire({
+                                                    icon: 'success',
+                                                    title: 'Plan Limits Updated Successfully',
+                                                    text: 'The organization plan limits have been updated.',
+                                                    confirmButtonText: 'OK',
+                                                });
+                                            },
+                                        }
+                                    );
+                                }}
+                                className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+                            >
+                                Save Changes
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setIsEditing(true)}
+                                className="rounded-md px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                                title="Edit capacities"
+                            >
+                                ✎
+                            </button>
+                        )}
+
                     </div>
                     <div className="overflow-x-auto max-h-[420px]">
                         <table className="w-full text-left text-xs text-gray-600">
@@ -107,11 +156,25 @@ export default function Credits({ credits = [] }) {
                                                 <td className="px-6 py-2.5 font-medium text-gray-800">
                                                     {featureLabels[key] || key}
                                                 </td>
-                                                <td className="px-6 py-2.5 font-mono text-right font-semibold text-gray-900">
-                                                    {val === -1
-                                                        ? 'Unlimited'
-                                                        : val
-                                                    }
+                                                <td className="px-6 py-2.5 text-right">
+                                                    {isEditing ? (
+                                                        <input
+                                                            type="number"
+                                                            min="-1"
+                                                            value={editedCapacities[key] ?? val}
+                                                            onChange={(e) => {
+                                                                setEditedCapacities({
+                                                                    ...editedCapacities,
+                                                                    [key]: Number(e.target.value),
+                                                                });
+                                                            }}
+                                                            className="w-24 rounded-md border border-gray-300 px-2 py-1 text-right font-mono text-xs font-semibold text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                        />
+                                                    ) : (
+                                                        <span className="font-mono font-semibold text-gray-900">
+                                                            {val === -1 ? 'Unlimited' : val}
+                                                        </span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         )

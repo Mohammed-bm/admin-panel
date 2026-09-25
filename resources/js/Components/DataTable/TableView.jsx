@@ -1,5 +1,8 @@
 import { forwardRef, useEffect, useRef, useImperativeHandle } from 'react';
 import DataTable from 'datatables.net-react';
+import DT from 'datatables.net-dt';
+
+DataTable.use(DT);
 
 const TableView = forwardRef(({ columns = [], data = [], slots = {} }, ref) => {
     const tableData = Array.isArray(data) ? data : (data?.data || []);
@@ -7,9 +10,31 @@ const TableView = forwardRef(({ columns = [], data = [], slots = {} }, ref) => {
     const localRef = useRef(null);
     useImperativeHandle(ref, () => localRef.current);
 
+    const sanitizedColumns = columns.map((col) => {
+        // Leave columns with explicit custom renders or slot references alone
+        if (col.render || slots[col.name] || col.data === null) {
+            return col;
+        }
+
+        return {
+            ...col,
+            render: (data) => {
+                if (data === null || data === undefined) return '';
+                // Convert value to string and escape HTML special characters
+                return String(data)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            },
+        };
+    });
+
     return (
         <div className="w-full 
             [&_table.dataTable]:!border-separate 
+            [&_table.dataTable]:[border-spacing:0]
             [&_table.dataTable]:!border 
             [&_table.dataTable]:!border-solid 
             [&_table.dataTable]:!border-gray-200 
@@ -72,7 +97,7 @@ const TableView = forwardRef(({ columns = [], data = [], slots = {} }, ref) => {
         >
             <DataTable
                 ref={localRef}
-                columns={columns}
+                columns={sanitizedColumns}
                 data={tableData}
                 className="w-full overflow-x-auto"
                 slots={slots}

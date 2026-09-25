@@ -17,6 +17,9 @@ use App\Models\Organization;
 use App\Services\SubscriptionProvisioningService;
 use App\Services\AdminSubscriptionService;
 use App\Services\AdminPaymentService;
+use App\Services\AdminCapacityService;
+use App\Models\MailboxLicense;
+use App\Models\MyMailbox;
 
 use Illuminate\Support\Facades\Log;
 
@@ -25,7 +28,8 @@ class OrganizationController extends Controller
     public function __construct(
         private SubscriptionProvisioningService $subscriptionProvisioningService,
         private AdminSubscriptionService $adminSubscriptionService,
-        private AdminPaymentService $adminPaymentService
+        private AdminPaymentService $adminPaymentService,
+        private AdminCapacityService $adminCapacityService
     ) {}
     public function index(Request $request)
     {
@@ -175,11 +179,35 @@ class OrganizationController extends Controller
                 return $credit;
             });
 
+        $licenses = MailboxLicense::whereHas('bundle', function ($query) use ($organization) {
+            $query->where('organization_id', $organization->id);
+        })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
+        $mailboxes = MyMailbox::with([
+            'assignments' => function ($query) {
+                $query->where('status', 'active')->with('license.bundle');
+            }
+        ])
+            ->whereHas('assignments', function ($query) {
+                $query->where('status', 'active');
+            })
+            ->whereHas('assignments.license.bundle', function ($query) use ($organization) {
+                $query->where('organization_id', $organization->id);
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('Organization/Show', [
             'organization' => $organization,
             'subscriptions' => $subscriptions,
             'payments' => $payments,
-            'credits' => $credits
+            'credits' => $credits,
+            'licenses' => $licenses,
+            'mailboxes' => $mailboxes,
         ]);
     }
     public function assignPlan(Request $request, Organization $organization)
@@ -309,6 +337,85 @@ class OrganizationController extends Controller
 
             return back()->withErrors([
                 'plan_id' => 'Plan assignment failed'
+            ]);
+        }
+    }
+    public function licenses(Organization $organization)
+    {
+        $licenses = MailboxLicense::whereHas('bundle', function ($query) use ($organization) {
+            $query->where('organization_id', $organization->id);
+        })->get();
+
+        return response()->json([
+            'organization_id' => $organization->id,
+            'licenses' => $licenses,
+        ]);
+    }
+    public function updateCapacity(
+        Request $request,
+        Organization $organization
+    ) {
+        try {
+            // Validate the complete capacities object
+            $validated = $request->validate([
+                'capacities' => ['required', 'array'],
+                'capacities.*' => ['integer', 'min:-1'],
+            ]);
+
+            // Get the existing capacity record
+            $oldCapacity = OrganizationCapacity::where(
+                'organization_id',
+                $organization->id
+            )
+                ->where('is_active', true)
+                ->first();
+
+            if (!$oldCapacity) {
+                return back()->withErrors([
+                    'capacities' => 'No active capacity record found for this organization.'
+                ]);
+            }
+
+            // Keep the old values for the audit log
+            $oldCapacities = $oldCapacity->capacities;
+
+            // Send the actual business logic to the service
+            $updatedCapacity = $this->adminCapacityService->updateCapacity(
+                $organization,
+                $validated['capacities']
+            );
+
+            // Create audit log
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'organization_id' => $organization->id,
+                'app_id' => null,
+                'action' => 'Capacity Updated',
+                'subject_type' => 'Organization',
+                'description' => "Updated capacities for organization {$organization->id}",
+                'old_values' => [
+                    'capacities' => $oldCapacities,
+                ],
+                'new_values' => [
+                    'capacities' => $updatedCapacity->capacities,
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            return back()->with(
+                'success',
+                'Organization capacities updated successfully.'
+            );
+        } catch (\Throwable $e) {
+
+            Log::error('Admin capacity update failed', [
+                'organization_id' => $organization->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'capacities' => $e->getMessage(),
             ]);
         }
     }
