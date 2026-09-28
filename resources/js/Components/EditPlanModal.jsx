@@ -28,8 +28,15 @@ export default function EditPlanModal({ organization, plans, isOpen, onClose }) 
                     text: 'The organization plan has been updated.',
                     confirmButtonText: 'OK',
                 });
-
                 onClose();
+            },
+            onError: () => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Something went wrong',
+                    text: 'The organization plan could not be updated.',
+                    confirmButtonText: 'OK',
+                });
             },
         });
     };

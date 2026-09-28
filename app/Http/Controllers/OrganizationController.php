@@ -117,7 +117,7 @@ class OrganizationController extends Controller
             ]),
         ]);
     }
-    public function show(Organization $organization)
+    public function show(Request $request, Organization $organization)
     {
         $subscriptions = StripeSubscription::where(
             'organization_id',
@@ -179,11 +179,18 @@ class OrganizationController extends Controller
                 return $credit;
             });
 
-        $licenses = MailboxLicense::whereHas('bundle', function ($query) use ($organization) {
-            $query->where('organization_id', $organization->id);
-        })
+        $licenseQuery = MailboxLicense::with('bundle')
+            ->whereHas('bundle', function ($query) use ($organization) {
+                $query->where('organization_id', $organization->id);
+            });
+
+        $licenses = $licenseQuery
             ->orderBy('created_at', 'desc')
-            ->paginate(10)
+            ->paginate(
+                $request->input('licenses_per_page', 10),
+                ['*'],
+                'licenses_page'
+            )
             ->withQueryString();
 
         $mailboxes = MyMailbox::with([
@@ -198,7 +205,11 @@ class OrganizationController extends Controller
                 $query->where('organization_id', $organization->id);
             })
             ->orderBy('created_at', 'desc')
-            ->paginate(10)
+            ->paginate(
+                $request->input('mailboxes_per_page', 10),
+                ['*'],
+                'mailboxes_page'
+            )
             ->withQueryString();
 
         return Inertia::render('Organization/Show', [
@@ -339,17 +350,6 @@ class OrganizationController extends Controller
                 'plan_id' => 'Plan assignment failed'
             ]);
         }
-    }
-    public function licenses(Organization $organization)
-    {
-        $licenses = MailboxLicense::whereHas('bundle', function ($query) use ($organization) {
-            $query->where('organization_id', $organization->id);
-        })->get();
-
-        return response()->json([
-            'organization_id' => $organization->id,
-            'licenses' => $licenses,
-        ]);
     }
     public function updateCapacity(
         Request $request,

@@ -4,7 +4,15 @@ import TableView from '@/Components/DataTable/TableView';
 import Pagination from '@/Components/DataTable/pagination';
 import { router } from '@inertiajs/react';
 
-export default function Mailboxes({ mailboxes = [], pagination = {} }) {
+export default function Mailboxes({ organization, mailboxes = [], pagination = {} }) {
+    const currentPage = pagination.current_page || 1;
+    const currentPerPage = pagination.per_page || 10;
+    const lastPage = pagination.last_page || 1;
+
+    const tableData = mailboxes.map((mailboxes, index) => ({
+        ...mailboxes,
+        row_number: (currentPage - 1) * currentPerPage + index + 1,
+    }));
     // Define the columns for DataTables.net
     const columns = [
         {
@@ -12,18 +20,14 @@ export default function Mailboxes({ mailboxes = [], pagination = {} }) {
             data: 'email'
         },
         {
-            title: 'License',
-            render: (data, type, row) => {
-                const activeAssignment = row.assignments?.find(a => a.status === 'active');
-                return activeAssignment?.license?.license_code || '-';
-            }
-        },
-        {
             title: 'License Type',
             render: (data, type, row) => {
-                const activeAssignment = row.assignments?.find(a => a.status === 'active');
+                const activeAssignment = row.assignments?.find(
+                    a => a.status === 'active'
+                );
+
                 return activeAssignment?.license?.license_type_name || '-';
-            }
+            },
         },
         {
             title: 'Storage',
@@ -32,6 +36,39 @@ export default function Mailboxes({ mailboxes = [], pagination = {} }) {
                 const storage = activeAssignment?.license?.total_storage_gb;
                 return storage != null ? `${storage} GB` : '-';
             }
+        },
+        {
+            title: 'Created At',
+            render: (data, type, row) => {
+                const activeAssignment = row.assignments?.find(
+                    a => a.status === 'active'
+                );
+
+                const createdAt = activeAssignment?.license?.created_at || '-';
+
+                if (!createdAt) {
+                    return '-';
+                }
+
+                return new Date(createdAt).toLocaleString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                });
+            },
+        },
+        {
+            title: 'Expires At',
+            render: (data, type, row) => {
+                const activeAssignment = row.assignments?.find(
+                    a => a.status === 'active'
+                );
+
+                return activeAssignment?.license?.expires_at || '-';
+            },
         },
         {
             title: 'Status',
@@ -44,32 +81,31 @@ export default function Mailboxes({ mailboxes = [], pagination = {} }) {
         },
     ];
 
+    const updateParams = (newParams) => {
+        const query = {
+            mailboxes_page: currentPage,
+            mailboxes_per_page: currentPerPage,
+            ...newParams,
+        };
+
+        router.get(`/organization/${organization.id}`, query, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
     const handlePageChange = (page) => {
-        router.get(
-            window.location.pathname,
-            {
-                mailboxes_page: page,
-                mailboxes_per_page: pagination.per_page,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-            }
-        );
+        updateParams({
+            mailboxes_page: page,
+        });
     };
 
     const handleLengthChange = (perPage) => {
-        router.get(
-            window.location.pathname,
-            {
-                mailboxes_page: 1,
-                mailboxes_per_page: perPage,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-            }
-        );
+        updateParams({
+            mailboxes_page: 1,
+            mailboxes_per_page: perPage,
+        });
     };
 
     return (
@@ -83,14 +119,14 @@ export default function Mailboxes({ mailboxes = [], pagination = {} }) {
                 <>
                     <TableView
                         columns={columns}
-                        data={mailboxes}
+                        data={tableData}
                     />
                     <div className="mt-4 bg-white rounded-xl border border-gray-200/80 shadow-sm">
                         <Pagination
-                            currentPage={pagination.current_page}
-                            lastPage={pagination.last_page}
-                            total={pagination.total}
-                            perPage={pagination.per_page}
+                            currentPage={currentPage}
+                            lastPage={lastPage}
+                            total={pagination.total || 0}
+                            perPage={currentPerPage}
                             onPageChange={handlePageChange}
                             onLengthChange={handleLengthChange}
                         />

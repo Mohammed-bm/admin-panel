@@ -7,7 +7,14 @@ import Credits from '@/Pages/Organization/Credits';
 import Mailboxes from '@/Pages/Organization/Mailboxes';
 import Licenses from '@/Pages/Organization/Licenses';
 
-export default function Show({ subscriptions, payments = [], credits, licenses, mailboxes = {} }) {
+export default function Show({
+    organization,
+    subscriptions,
+    payments = [],
+    credits,
+    licenses,
+    mailboxes = {},
+}) {
     console.log('Payments in Show page:', payments);
     console.log('Credits in Show page:', credits);
     console.log('Licenses:', licenses);
@@ -82,12 +89,14 @@ export default function Show({ subscriptions, payments = [], credits, licenses, 
                 )}
                 {activeTab === 'mailboxes' && (
                     <Mailboxes
+                        organization={organization}
                         mailboxes={mailboxes?.data || []}
                         pagination={mailboxes}
                     />
                 )}
                 {activeTab === 'licenses' && (
                     <Licenses
+                        organization={organization}
                         licenses={licenses?.data || []}
                         pagination={licenses}
                     />

@@ -36,6 +36,7 @@ export default function TableSearchInput({activeSearch = '', onSearch, placehold
                 type="text"
                 value={searchValue}
                 placeholder={placeholder}
+                maxLength={25}
                 onChange={handleSearch}
                 className="w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />
