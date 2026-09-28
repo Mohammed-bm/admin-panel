@@ -20,6 +20,7 @@ use App\Services\AdminPaymentService;
 use App\Services\AdminCapacityService;
 use App\Models\MailboxLicense;
 use App\Models\MyMailbox;
+use App\Support\Filters\DateFilter;
 
 use Illuminate\Support\Facades\Log;
 
@@ -119,98 +120,168 @@ class OrganizationController extends Controller
     }
     public function show(Request $request, Organization $organization)
     {
-        $subscriptions = StripeSubscription::where(
-            'organization_id',
-            $organization->id
-        )->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($subscription) {
-                $subscription->trial_ends_at = $subscription->trial_ends_at
-                    ? Carbon::parse($subscription->trial_ends_at)->format('g:i A, M j, Y')
-                    : null;
+        $tab = $request->input('tab', 'subscriptions');
 
-                $subscription->ends_at = $subscription->ends_at
-                    ? Carbon::parse($subscription->ends_at)->format('g:i A, M j, Y')
-                    : null;
+        $subscriptions = [];
 
-                $subscription->created_date = $subscription->created_at
-                    ? $subscription->created_at->format('g:i A, M j, Y')
-                    : null;
+        if ($tab === 'subscriptions') {
+            $subscriptions = StripeSubscription::where(
+                'organization_id',
+                $organization->id
+            )->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($subscription) {
+                    $subscription->trial_ends_at = $subscription->trial_ends_at
+                        ? Carbon::parse($subscription->trial_ends_at)->format('g:i A, M j, Y')
+                        : null;
 
-                $subscription->updated_date = $subscription->updated_at
-                    ? $subscription->updated_at->format('g:i A, M j, Y')
-                    : null;
+                    $subscription->ends_at = $subscription->ends_at
+                        ? Carbon::parse($subscription->ends_at)->format('g:i A, M j, Y')
+                        : null;
 
-                return $subscription;
-            });
+                    $subscription->created_date = $subscription->created_at
+                        ? $subscription->created_at->format('g:i A, M j, Y')
+                        : null;
 
+                    $subscription->updated_date = $subscription->updated_at
+                        ? $subscription->updated_at->format('g:i A, M j, Y')
+                        : null;
 
-        $payments = PaymentStatus::where(
-            'organization_id',
-            $organization->id
-        )->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($payments) {
-                $payments->created_date = $payments->created_at
-                    ? $payments->created_at->format('g:i A, M j, Y')
-                    : null;
+                    return $subscription;
+                });
+        }
 
-                $payments->updated_date = $payments->updated_at
-                    ? $payments->updated_at->format('g:i A, M j, Y')
-                    : null;
+        $payments = [];
 
-                return $payments;
-            });
+        if ($tab === 'payments') {
+            $payments = PaymentStatus::where(
+                'organization_id',
+                $organization->id
+            )->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($payments) {
+                    $payments->created_date = $payments->created_at
+                        ? $payments->created_at->format('g:i A, M j, Y')
+                        : null;
 
-        $credits = OrganizationCapacity::where(
-            'organization_id',
-            $organization->id
-        )->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($credit) {
-                $credit->created_date = $credit->created_at
-                    ? $credit->created_at->format('g:i A, M j, Y')
-                    : null;
+                    $payments->updated_date = $payments->updated_at
+                        ? $payments->updated_at->format('g:i A, M j, Y')
+                        : null;
 
-                $credit->updated_date = $credit->updated_at
-                    ? $credit->updated_at->format('g:i A, M j, Y')
-                    : null;
+                    return $payments;
+                });
+        }
 
-                return $credit;
-            });
+        $credits = [];
 
-        $licenseQuery = MailboxLicense::with('bundle')
-            ->whereHas('bundle', function ($query) use ($organization) {
-                $query->where('organization_id', $organization->id);
-            });
+        if ($tab === 'credits') {
+            $credits = OrganizationCapacity::where(
+                'organization_id',
+                $organization->id
+            )->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($credit) {
+                    $credit->created_date = $credit->created_at
+                        ? $credit->created_at->format('g:i A, M j, Y')
+                        : null;
 
-        $licenses = $licenseQuery
-            ->orderBy('created_at', 'desc')
-            ->paginate(
-                $request->input('licenses_per_page', 10),
-                ['*'],
-                'licenses_page'
-            )
-            ->withQueryString();
+                    $credit->updated_date = $credit->updated_at
+                        ? $credit->updated_at->format('g:i A, M j, Y')
+                        : null;
 
-        $mailboxes = MyMailbox::with([
-            'assignments' => function ($query) {
-                $query->where('status', 'active')->with('license.bundle');
-            }
-        ])
-            ->whereHas('assignments', function ($query) {
-                $query->where('status', 'active');
-            })
-            ->whereHas('assignments.license.bundle', function ($query) use ($organization) {
-                $query->where('organization_id', $organization->id);
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate(
-                $request->input('mailboxes_per_page', 10),
-                ['*'],
-                'mailboxes_page'
-            )
-            ->withQueryString();
+                    return $credit;
+                });
+        }
+
+        $licensesFilter = $request->input('licenses_filter');
+        $licensesStartDate = $request->input('licenses_start_date');
+        $licensesEndDate = $request->input('licenses_end_date');
+
+        $licenses = [];
+
+        if ($tab === 'licenses') {
+            $licenseQuery = MailboxLicense::with('bundle')
+                ->whereHas('bundle', function ($query) use ($organization) {
+                    $query->where('organization_id', $organization->id);
+                });
+
+            DateFilter::apply(
+                $licenseQuery,
+                $licensesFilter,
+                $licensesStartDate,
+                $licensesEndDate,
+                'mailbox_licenses.created_at'
+            );
+
+            $licensesPerPage = $request->input('licenses_per_page', 10);
+
+            $licenses = $licenseQuery
+                ->orderBy('created_at', 'desc')
+                ->paginate(
+                    $licensesPerPage,
+                    ['*'],
+                    'licenses_page'
+                )
+                ->appends([
+                    'tab' => 'licenses',
+                    'licenses_filter' => $licensesFilter,
+                    'licenses_start_date' => $licensesStartDate,
+                    'licenses_end_date' => $licensesEndDate,
+                    'licenses_per_page' => $licensesPerPage,
+                ]);
+        }
+
+        $mailboxesFilter = $request->input('mailboxes_filter');
+        $mailboxesStartDate = $request->input('mailboxes_start_date');
+        $mailboxesEndDate = $request->input('mailboxes_end_date');
+
+        $mailboxes = [];
+
+        if ($tab === 'mailboxes') {
+            $mailboxesQuery = MyMailbox::with([
+                'assignments' => function ($query) {
+                    $query->where('status', 'active')
+                        ->with('license.bundle');
+                }
+            ])
+                ->whereHas('assignments', function ($query) {
+                    $query->where('status', 'active');
+                })
+                ->whereHas('assignments.license.bundle', function ($query) use ($organization) {
+                    $query->where(
+                        'organization_id',
+                        $organization->id
+                    );
+                });
+
+            DateFilter::apply(
+                $mailboxesQuery,
+                $mailboxesFilter,
+                $mailboxesStartDate,
+                $mailboxesEndDate,
+                'my_mailboxes.created_at'
+            );
+
+            $mailboxesPerPage = $request->input(
+                'mailboxes_per_page',
+                10
+            );
+
+            $mailboxes = $mailboxesQuery
+                ->orderBy('created_at', 'desc')
+                ->paginate(
+                    $mailboxesPerPage,
+                    ['*'],
+                    'mailboxes_page'
+                )
+                ->appends([
+                    'tab' => 'mailboxes',
+                    'mailboxes_filter' => $mailboxesFilter,
+                    'mailboxes_start_date' => $mailboxesStartDate,
+                    'mailboxes_end_date' => $mailboxesEndDate,
+                    'mailboxes_per_page' => $mailboxesPerPage,
+                ]);
+        }
 
         return Inertia::render('Organization/Show', [
             'organization' => $organization,
@@ -219,6 +290,18 @@ class OrganizationController extends Controller
             'credits' => $credits,
             'licenses' => $licenses,
             'mailboxes' => $mailboxes,
+
+            'licenseFilters' => [
+                'filter' => $licensesFilter,
+                'start_date' => $licensesStartDate,
+                'end_date' => $licensesEndDate,
+            ],
+
+            'mailboxFilters' => [
+                'filter' => $mailboxesFilter,
+                'start_date' => $mailboxesStartDate,
+                'end_date' => $mailboxesEndDate,
+            ],
         ]);
     }
     public function assignPlan(Request $request, Organization $organization)

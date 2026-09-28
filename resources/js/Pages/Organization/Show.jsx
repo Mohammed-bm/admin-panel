@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Head } from '@inertiajs/react';
+import React from 'react';
+import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Subscriptions from '@/Pages/Organization/Subscriptions';
 import Payments from '@/Pages/Organization/Payments';
@@ -14,12 +14,15 @@ export default function Show({
     credits,
     licenses,
     mailboxes = {},
+    licenseFilters = {},
+    mailboxFilters = {},
 }) {
     console.log('Payments in Show page:', payments);
     console.log('Credits in Show page:', credits);
     console.log('Licenses:', licenses);
     console.log('mailboxes:', mailboxes)
-    const [activeTab, setActiveTab] = useState('subscriptions');
+
+    const activeTab = new URLSearchParams(window.location.search).get('tab') || 'subscriptions';
 
     return (
         <AuthenticatedLayout>
@@ -30,7 +33,12 @@ export default function Show({
                 <div className="mb-6 border-b border-gray-200">
                     <nav className="-mb-px flex space-x-8">
                         <button
-                            onClick={() => setActiveTab('subscriptions')}
+                            onClick={() => router.get(`/organization/${organization.id}`, {
+                                tab: 'subscriptions',
+                            }, {
+                                preserveState: true,
+                                preserveScroll: true,
+                            })}
                             className={`py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'subscriptions'
                                 ? 'border-indigo-500 text-indigo-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -39,7 +47,12 @@ export default function Show({
                             Subscriptions
                         </button>
                         <button
-                            onClick={() => setActiveTab('payments')}
+                            onClick={() => router.get(`/organization/${organization.id}`, {
+                                tab: 'payments',
+                            }, {
+                                preserveState: true,
+                                preserveScroll: true,
+                            })}
                             className={`py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'payments'
                                 ? 'border-indigo-500 text-indigo-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -48,7 +61,12 @@ export default function Show({
                             Payments
                         </button>
                         <button
-                            onClick={() => setActiveTab('credits')}
+                            onClick={() => router.get(`/organization/${organization.id}`, {
+                                tab: 'credits',
+                            }, {
+                                preserveState: true,
+                                preserveScroll: true,
+                            })}
                             className={`py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'credits'
                                 ? 'border-indigo-500 text-indigo-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -57,7 +75,12 @@ export default function Show({
                             Credit
                         </button>
                         <button
-                            onClick={() => setActiveTab('licenses')}
+                            onClick={() => router.get(`/organization/${organization.id}`, {
+                                tab: 'licenses',
+                            }, {
+                                preserveState: true,
+                                preserveScroll: true,
+                            })}
                             className={`py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'licenses'
                                 ? 'border-indigo-500 text-indigo-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -66,7 +89,12 @@ export default function Show({
                             Licenses
                         </button>
                         <button
-                            onClick={() => setActiveTab('mailboxes')}
+                            onClick={() => router.get(`/organization/${organization.id}`, {
+                                tab: 'mailboxes',
+                            }, {
+                                preserveState: true,
+                                preserveScroll: true,
+                            })}
                             className={`py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'mailboxes'
                                 ? 'border-indigo-500 text-indigo-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -92,6 +120,7 @@ export default function Show({
                         organization={organization}
                         mailboxes={mailboxes?.data || []}
                         pagination={mailboxes}
+                        mailboxFilters={mailboxFilters}
                     />
                 )}
                 {activeTab === 'licenses' && (
@@ -99,6 +128,7 @@ export default function Show({
                         organization={organization}
                         licenses={licenses?.data || []}
                         pagination={licenses}
+                        licenseFilters={licenseFilters}
                     />
                 )}
             </div>

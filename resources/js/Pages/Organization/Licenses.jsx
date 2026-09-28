@@ -1,11 +1,10 @@
 import React from 'react';
-import { Typography } from '@mui/material';
 import TableView from '@/Components/DataTable/TableView';
 import Pagination from '@/Components/DataTable/Pagination';
 import { router } from '@inertiajs/react';
-import { TableSearchInput, TableFilterDropdown } from '@/components/DataTable';
+import { TableFilterDropdown } from '@/components/DataTable';
 
-export default function Licenses({ organization, licenses = [], pagination = {}, filters = {} }) {
+export default function Licenses({ organization, licenses = [], pagination = {}, filters = {}, licenseFilters = {} }) {
 
     const currentPage = pagination.current_page || 1;
     const currentPerPage = pagination.per_page || 10;
@@ -76,10 +75,27 @@ export default function Licenses({ organization, licenses = [], pagination = {},
 
     const updateParams = (newParams) => {
         const query = {
+            tab: 'licenses',
+
             licenses_page: currentPage,
             licenses_per_page: currentPerPage,
+
+            licenses_filter: licenseFilters.filter,
+            licenses_start_date: licenseFilters.start_date,
+            licenses_end_date: licenseFilters.end_date,
+
             ...newParams,
         };
+
+        Object.keys(query).forEach((key) => {
+            if (
+                query[key] === undefined ||
+                query[key] === null ||
+                query[key] === ''
+            ) {
+                delete query[key];
+            }
+        });
 
         router.get(`/organization/${organization.id}`, query, {
             preserveState: true,
@@ -101,64 +117,78 @@ export default function Licenses({ organization, licenses = [], pagination = {},
         });
     };
 
-    const { filter = '' } = filters;
-
     const handleFilter = (filterValue) => {
-        updateParams({ filter: filterValue });
+        updateParams({
+            licenses_filter: filterValue,
+            licenses_start_date: undefined,
+            licenses_end_date: undefined,
+            licenses_page: 1,
+        });
     };
 
     const handleDateFilter = (startDate, endDate) => {
-        updateParams({ filter: `custom:${startDate}:${endDate}` });
+        updateParams({
+            licenses_filter: 'custom',
+            licenses_start_date: startDate,
+            licenses_end_date: endDate,
+            licenses_page: 1,
+        });
     };
 
     const handleReset = () => {
-        router.get(`/organization/${organization.id}`, {}, {
-            preserveState: false, // Allows clean reload of initial page state
+        router.get(`/organization/${organization.id}`, {
+            tab: 'licenses',
+            licenses_page: 1,
+            licenses_per_page: currentPerPage,
+        }, {
+            preserveState: false,
             preserveScroll: true,
+            replace: true,
         });
     };
 
     return (
         <div>
-            {licenses.length === 0 ? (
-                <Typography color="text.secondary">
-                    No licenses found.
-                </Typography>
-            ) : (
-                <>
-                    <div className="flex items-end gap-4">
-                        <div className="flex flex-col items-start gap-1">
-                            <span className="text-sm font-medium text-gray-500">Filter By Date:</span>
+            <div className="flex flex-col gap-4 bg-white p-2 rounded-xl border border-gray-200/80 shadow-sm">
+                <div className="flex items-end gap-4">
+                    <div className="flex flex-col items-start gap-1">
+                        <span className="text-sm font-medium text-gray-500">
+                            Filter By Date:
+                        </span>
 
-                            <TableFilterDropdown
-                                onFilter={handleFilter}
-                                onDateFilter={handleDateFilter}
-                            />
-                        </div>
-
-                        <button
-                            onClick={handleReset}
-                            className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-colors"
-                        >
-                            Reset
-                        </button>
-                    </div>
-                    <TableView
-                        columns={columns}
-                        data={tableData}
-                    />
-                    <div className="mt-4 bg-white rounded-xl border border-gray-200/80 shadow-sm">
-                        <Pagination
-                            currentPage={currentPage}
-                            lastPage={lastPage}
-                            total={pagination.total || 0}
-                            perPage={currentPerPage}
-                            onPageChange={handlePageChange}
-                            onLengthChange={handleLengthChange}
+                        <TableFilterDropdown
+                            onFilter={handleFilter}
+                            onDateFilter={handleDateFilter}
+                            activeFilter={licenseFilters.filter || ''}
                         />
                     </div>
-                </>
-            )}
+
+                    <button
+                        onClick={handleReset}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-colors"
+                    >
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <TableView
+                    columns={columns}
+                    data={tableData}
+                />
+            </div>
+
+            <div className="mt-4 bg-white rounded-xl border border-gray-200/80 shadow-sm">
+                <Pagination
+                    currentPage={currentPage}
+                    lastPage={lastPage}
+                    total={pagination.total || 0}
+                    perPage={currentPerPage}
+                    onPageChange={handlePageChange}
+                    onLengthChange={handleLengthChange}
+                />
+            </div>
         </div>
     );
 }
