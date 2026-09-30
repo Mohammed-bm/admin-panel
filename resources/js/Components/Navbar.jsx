@@ -61,31 +61,7 @@ export default function Navbar({ open, onMobileToggle }) {
                     </IconButton>
 
                     {/* Brand Logo & Title */}
-                    <Box
-                        component={Link}
-                        //href="/"
-                        sx={{ display: 'flex', alignItems: 'center', gap: 1.5, textDecoration: 'none' }}
-                    >
-                        <Box
-                            sx={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: '10px',
-                                backgroundColor: '#6C38CC',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#FFFFFF',
-                                fontWeight: 700,
-                                fontSize: '1.1rem',
-                            }}
-                        >
-                            N
-                        </Box>
-                        <Typography variant="h6" fontWeight={700} sx={{ color: '#0F172A', letterSpacing: '-0.02em' }}>
-                            Leadnest.ai
-                        </Typography>
-                    </Box>
+
                 </Box>
 
                 {/* Right Section: Notifications & Profile Menu */}

@@ -85,84 +85,77 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
         onDateFilter?.(formattedStart, formattedEnd);
     };
 
-    console.log('selected:', selected);
-
     return (
-        <div className="relative flex items-center gap-2">
-            {/* Main Filter Button */}
-            <div ref={dropdownRef} className="relative">
-                <button
-                    onClick={toggle}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                >
-                    <FiFilter className="w-4 h-4 text-gray-500" />
+        <div className="relative flex items-end gap-2">
 
-                    <span>
-                        {selected ? selected.name : "Filter"}
-                    </span>
+            {/* Main Filter Button Container with Label */}
+            <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 h-4">
+                    Filter by Date:
+                </label>
 
-                    <GoChevronDown
-                        className={classNames(
-                            "transition-transform text-gray-400",
-                            {
-                                "rotate-180": opened,
-                            }
-                        )}
-                    />
-                </button>
+                <div ref={dropdownRef} className="relative">
+                    <button
+                        onClick={toggle}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                    >
+                        <FiFilter className="w-4 h-4 text-gray-500" />
 
-                {/* Filter Dropdown */}
-                {opened && (
-                    <div className="absolute top-12 left-0 z-50 flex flex-col w-[300px] border border-gray-200 rounded-md shadow-lg bg-white">
-                        <div className="w-full flex flex-col py-2 px-2 border-b border-gray-200">
-                            {SORT_BILL_DATE.map((item) => (
-                                <button
-                                    key={item.value}
-                                    onClick={() => handleSelect(item)}
-                                    className={classNames(
-                                        "w-full px-4 py-[10.5px] text-left text-sm rounded-md",
-                                        selected?.value === item.value
-                                            ? "bg-[#EAEFFF] font-medium"
-                                            : "hover:bg-[#F5F8FF]"
-                                    )}
-                                >
-                                    {item.name}
-                                </button>
-                            ))}
+                        <span>
+                            {selected ? selected.name : "Filter"}
+                        </span>
+
+                        <GoChevronDown
+                            className={classNames(
+                                "transition-transform text-gray-400",
+                                {
+                                    "rotate-180": opened,
+                                }
+                            )}
+                        />
+                    </button>
+
+                    {/* Filter Dropdown */}
+                    {opened && (
+                        <div className="absolute top-12 left-0 z-50 flex flex-col w-[300px] border border-gray-200 rounded-md shadow-lg bg-white">
+                            <div className="w-full flex flex-col py-2 px-2 border-b border-gray-200">
+                                {SORT_BILL_DATE.map((item) => (
+                                    <button
+                                        key={item.value}
+                                        onClick={() => handleSelect(item)}
+                                        className={classNames(
+                                            "w-full px-4 py-[10.5px] text-left text-sm rounded-md",
+                                            selected?.value === item.value
+                                                ? "bg-[#EAEFFF] font-medium"
+                                                : "hover:bg-[#F5F8FF]"
+                                        )}
+                                    >
+                                        {item.name}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
+
+            {/* Custom Date Inputs */}
             {showCustomDateInputs && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-end gap-2">
+
+                    {/* Start Date */}
                     <div className="flex flex-col gap-1">
-                        <div className="relative">
-                            <DatePicker
-                                selected={startDate}
-                                onChange={handleStartDateChange}
-                                selectsStart
-                                startDate={startDate}
-                                endDate={endDate}
-                                placeholderText="Start Date"
-                                dateFormat="yyyy-MM-dd"
-                                showMonthDropdown
-                                showYearDropdown
-                                dropdownMode="select"
-                                scrollableYearDropdown
-                                yearDropdownItemNumber={50}
-                                className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 bg-white text-gray-700"
-                            />
-                        </div>
-                    </div>
-                    <span className="text-gray-400 text-sm">to</span>
-                    <div className="relative">
+                        <label className="text-xs text-gray-500 h-4">
+                            Start Date
+                        </label>
+
                         <DatePicker
-                            selected={endDate}
-                            onChange={handleEndDateChange}
-                            selectsEnd
+                            selected={startDate}
+                            onChange={handleStartDateChange}
+                            selectsStart
                             startDate={startDate}
                             endDate={endDate}
-                            placeholderText="End Date"
+                            placeholderText="yyyy-MM-dd"
                             dateFormat="yyyy-MM-dd"
                             showMonthDropdown
                             showYearDropdown
@@ -172,6 +165,36 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
                             className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 bg-white text-gray-700"
                         />
                     </div>
+
+                    {/* To */}
+                    <span className="text-gray-400 text-sm mb-2">
+                        to
+                    </span>
+
+                    {/* End Date */}
+                    <div className="flex flex-col gap-1">
+                        <label className="text-xs text-gray-500 h-4">
+                            End Date
+                        </label>
+
+                        <DatePicker
+                            selected={endDate}
+                            onChange={handleEndDateChange}
+                            selectsEnd
+                            startDate={startDate}
+                            endDate={endDate}
+                            minDate={startDate}
+                            placeholderText="yyyy-MM-dd"
+                            dateFormat="yyyy-MM-dd"
+                            showMonthDropdown
+                            showYearDropdown
+                            dropdownMode="select"
+                            scrollableYearDropdown
+                            yearDropdownItemNumber={50}
+                            className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 bg-white text-gray-700"
+                        />
+                    </div>
+
                 </div>
             )}
         </div>

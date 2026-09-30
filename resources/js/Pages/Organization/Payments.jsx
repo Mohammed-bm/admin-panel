@@ -1,6 +1,7 @@
 import React from 'react';
 
 export default function Payments({ payments = [] }) {
+    
     console.log('Payments in Payments component:', payments);
 
     // Helper function to render status badges
@@ -23,7 +24,7 @@ export default function Payments({ payments = [] }) {
     };
 
     return (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-gray-600">
                     <thead className="border-b border-gray-200 bg-gray-50/75 uppercase tracking-wider text-gray-500">

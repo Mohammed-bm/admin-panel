@@ -14,6 +14,10 @@ use App\Models\Plan;
 use App\Models\PlanAllowance;
 use App\Models\AuditLog;
 use App\Models\Organization;
+use App\Models\App;
+use App\Models\EmailCampaign;
+use App\Models\EmailMetric;
+use App\Models\EmailCampaignRecipient;
 use App\Services\SubscriptionProvisioningService;
 use App\Services\AdminSubscriptionService;
 use App\Services\AdminPaymentService;
@@ -21,6 +25,8 @@ use App\Services\AdminCapacityService;
 use App\Models\MailboxLicense;
 use App\Models\MyMailbox;
 use App\Support\Filters\DateFilter;
+use App\Support\Filters\SearchFilter;
+use App\Support\Pagination\Paginator;
 
 use Illuminate\Support\Facades\Log;
 
@@ -43,56 +49,28 @@ class OrganizationController extends Controller
 
         // Date filter
         $filter = $request->input('filter');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-        if ($filter === 'today') {
-            $query->whereDate('organizations.created_at', Carbon::today());
-        } elseif ($filter === 'last-7-days') {
-            $query->where(
-                'organizations.created_at',
-                '>=',
-                Carbon::now()->subDays(7)->startOfDay()
-            );
-        } elseif ($filter === 'last-15-days') {
-            $query->where(
-                'organizations.created_at',
-                '>=',
-                Carbon::now()->subDays(15)->startOfDay()
-            );
-        } elseif ($filter === 'last-30-days') {
-            $query->where(
-                'organizations.created_at',
-                '>=',
-                Carbon::now()->subDays(30)->startOfDay()
-            );
-        } elseif ($filter === 'last-year') {
-            $query->where(
-                'organizations.created_at',
-                '>=',
-                Carbon::now()->subYear()->startOfDay()
-            );
-        } elseif (str_starts_with($filter ?? '', 'custom:')) {
-            $parts = explode(':', $filter);
-
-            if (count($parts) === 3) {
-                $start = min($parts[1], $parts[2]);
-                $end = max($parts[1], $parts[2]);
-
-                $query->whereBetween('organizations.created_at', [
-                    Carbon::parse($start)->startOfDay(),
-                    Carbon::parse($end)->endOfDay(),
-                ]);
-            }
-        }
+        DateFilter::apply(
+            $query,
+            $filter,
+            $startDate,
+            $endDate,
+            'organizations.created_at'
+        );
 
         $search = $request->input('search');
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('website', 'like', "%{$search}%")
-                    ->orWhere('users.email', 'like', "%{$search}%");
-            });
-        }
+        SearchFilter::apply(
+            $query,
+            $search,
+            [
+                'organizations.name',
+                'organizations.website',
+                'users.email',
+            ]
+        );
 
         $organizations = $query
             ->orderBy('organizations.created_at', 'desc')
@@ -121,6 +99,7 @@ class OrganizationController extends Controller
     public function show(Request $request, Organization $organization)
     {
         $tab = $request->input('tab', 'subscriptions');
+        $subTab = $request->input('sub_tab', 'emails');
 
         $subscriptions = [];
 
@@ -283,6 +262,63 @@ class OrganizationController extends Controller
                 ]);
         }
 
+        $apps = [];
+
+        if ($tab === 'apps') {
+
+            $appsPerPage = $request->integer('per_page', 10);
+            $campaignsPerPage = $request->integer('campaigns_per_page', 10);
+
+            $apps = App::where('organization_id', $organization->id)
+                ->select(
+                    'id',
+                    'uuid',
+                    'name',
+                    'organization_id'
+                )
+                ->withMax('emailCampaigns', 'updated_at')
+                ->orderByDesc('email_campaigns_max_updated_at')
+                ->paginate($appsPerPage);
+
+            $apps->getCollection()->transform(function ($app) use ($subTab, $campaignsPerPage) {
+
+                if ($subTab === 'emails') {
+
+                    $campaigns = $app->emailCampaigns()
+                        ->with('metric')
+                        ->withCount('recipients')
+                        ->orderByDesc('updated_at')
+                        ->paginate(
+                            $campaignsPerPage,
+                            ['*'],
+                            "campaigns_page_{$app->id}"
+                        );
+
+                    $campaigns->getCollection()->transform(function ($campaign) {
+
+                        return [
+                            'campaign_name' => $campaign->campaign_name,
+                            'type' => $campaign->type,
+
+                            'recipients' => $campaign->recipients_count,
+
+                            'sent_count' => $campaign->metric?->sent_count ?? 0,
+                            'open_count' => $campaign->metric?->open_count ?? 0,
+                            'click_count' => $campaign->metric?->click_count ?? 0,
+                            'soft_bounce' => $campaign->metric?->soft_bounce ?? 0,
+                            'hard_bounce' => $campaign->metric?->hard_bounce ?? 0,
+
+                            'launched' => $campaign->updated_at?->format('h:i A, d M Y'),
+                        ];
+                    });
+
+                    $app->campaigns = $campaigns;
+                }
+
+                return $app;
+            });
+        }
+
         return Inertia::render('Organization/Show', [
             'organization' => $organization,
             'subscriptions' => $subscriptions,
@@ -290,6 +326,7 @@ class OrganizationController extends Controller
             'credits' => $credits,
             'licenses' => $licenses,
             'mailboxes' => $mailboxes,
+            'apps' => $apps,
 
             'licenseFilters' => [
                 'filter' => $licensesFilter,

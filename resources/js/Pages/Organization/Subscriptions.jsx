@@ -21,7 +21,7 @@ export default function Subscriptions({ subscriptions = [] }) {
     };
 
     return (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-gray-600">
                     <thead className="border-b border-gray-200 bg-gray-50/75 uppercase tracking-wider text-xs text-gray-500">

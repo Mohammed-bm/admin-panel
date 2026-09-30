@@ -71,7 +71,7 @@ export default function Index({ organizations, filters = {}, plans = [] }) {
                 <button
                     type="button"
                     onClick={() => handleOpenPlanModal(row)}
-                    
+
                 >
                     <FiRepeat size={18} />
                 </button>
@@ -79,7 +79,12 @@ export default function Index({ organizations, filters = {}, plans = [] }) {
         ),
     };
 
-    const { search = '', filter = '' } = filters;
+    const {
+        search = '',
+        filter = '',
+        start_date = '',
+        end_date = '',
+    } = filters;
 
     const updateParams = (newParams) => {
         const isFilterOrSearch = 'search' in newParams || 'filter' in newParams;
@@ -87,10 +92,12 @@ export default function Index({ organizations, filters = {}, plans = [] }) {
         const query = {
             filter: filter || undefined,
             search: search || undefined,
+            start_date: start_date || undefined,
+            end_date: end_date || undefined,
             page: isFilterOrSearch ? 1 : currentPage,
             per_page: currentPerPage || undefined,
             ...newParams,
-        };
+        }; 
 
         // Clean out empty/undefined keys so the URL stays clean
         Object.keys(query).forEach((key) => {
@@ -113,7 +120,11 @@ export default function Index({ organizations, filters = {}, plans = [] }) {
     };
 
     const handleDateFilter = (startDate, endDate) => {
-        updateParams({ filter: `custom:${startDate}:${endDate}` });
+        updateParams({
+            filter: 'custom',
+            start_date: startDate,
+            end_date: endDate,
+        });
     };
 
     const handleReset = () => {
@@ -141,12 +152,11 @@ export default function Index({ organizations, filters = {}, plans = [] }) {
 
                     <div className="flex flex-col gap-4 bg-white p-6 rounded-xl border border-gray-200/80 shadow-sm">
                         <h2 className="text-xl font-bold">
-                            organizations Management
+                            Organizations Management
                         </h2>
 
                         <div className="flex items-end gap-4">
                             <div className="flex flex-col items-start gap-1">
-                                <span className="text-sm font-medium text-gray-500">Filter By Date:</span>
 
                                 <TableFilterDropdown
                                     onFilter={handleFilter}

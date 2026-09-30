@@ -148,13 +148,10 @@ export default function Licenses({ organization, licenses = [], pagination = {},
     };
 
     return (
-        <div>
+        <div className='mt-6'>
             <div className="flex flex-col gap-4 bg-white p-2 rounded-xl border border-gray-200/80 shadow-sm">
                 <div className="flex items-end gap-4">
                     <div className="flex flex-col items-start gap-1">
-                        <span className="text-sm font-medium text-gray-500">
-                            Filter By Date:
-                        </span>
 
                         <TableFilterDropdown
                             onFilter={handleFilter}

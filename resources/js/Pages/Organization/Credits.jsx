@@ -132,7 +132,7 @@ export default function Credits({ credits = [] }) {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="mt-6 space-y-6">
             {/* Metadata Header Card */}
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm text-xs text-gray-500">
                 <div className="flex items-center gap-3">

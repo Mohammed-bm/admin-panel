@@ -8,6 +8,7 @@ import { TableSearchInput, TableFilterDropdown, TableView } from '@/components/D
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function Index({ users, filters = {} }) {
+    console.log(users);
 
     const tableRef = useRef(null);
 
@@ -86,7 +87,11 @@ export default function Index({ users, filters = {} }) {
     };
 
     const handleDateFilter = (startDate, endDate) => {
-        updateParams({ filter: `custom:${startDate}:${endDate}` });
+        updateParams({
+            filter: 'custom',
+            start_date: startDate,
+            end_date: endDate,
+        });
     };
 
     // Reset Handler: Sends request without any query params to reload all users
@@ -121,7 +126,6 @@ export default function Index({ users, filters = {} }) {
 
                         <div className="flex items-end gap-4">
                             <div className="flex flex-col items-start gap-1">
-                                <span className="text-sm font-medium text-gray-500">Filter By Date:</span>
 
                                 <TableFilterDropdown
                                     activeFilter={filter}

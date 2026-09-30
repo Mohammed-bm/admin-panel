@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use App\Support\Filters\DateFilter;
+use App\Support\Filters\SearchFilter;
 
 class UserController extends Controller
 {
@@ -13,60 +14,31 @@ class UserController extends Controller
     {
         $query = User::query();
 
-        // Date filter
         $filter = $request->input('filter');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-        if ($filter === 'today') {
-            $query->whereDate('created_at', Carbon::today());
-        } elseif ($filter === 'last-7-days') {
-            $query->where(
-                'created_at',
-                '>=',
-                Carbon::now()->subDays(7)->startOfDay()
-            );
-        } elseif ($filter === 'last-15-days') {
-            $query->where(
-                'created_at',
-                '>=',
-                Carbon::now()->subDays(15)->startOfDay()
-            );
-        } elseif ($filter === 'last-30-days') {
-            $query->where(
-                'created_at',
-                '>=',
-                Carbon::now()->subDays(30)->startOfDay()
-            );
-        } elseif ($filter === 'last-year') {
-            $query->where(
-                'created_at',
-                '>=',
-                Carbon::now()->subYear()->startOfDay()
-            );
-        } elseif (str_starts_with($filter ?? '', 'custom:')) {
-            $parts = explode(':', $filter);
-
-            if (count($parts) === 3) {
-                $start = min($parts[1], $parts[2]);
-                $end = max($parts[1], $parts[2]);
-
-                $query->whereBetween('created_at', [
-                    Carbon::parse($start)->startOfDay(),
-                    Carbon::parse($end)->endOfDay(),
-                ]);
-            }
-        }
+        DateFilter::apply(
+            $query,
+            $filter,
+            $startDate,
+            $endDate,
+            'created_at'
+        );
 
         // Search
         $search = $request->input('search');
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                    ->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
+        SearchFilter::apply(
+            $query,
+            $search,
+            [
+                'id',
+                'first_name',
+                'last_name',
+                'email',
+            ]
+        );
 
         $users = $query
             ->orderBy('created_at', 'desc')
@@ -89,5 +61,4 @@ class UserController extends Controller
             ]),
         ]);
     }
-
 }

@@ -6,6 +6,7 @@ import Payments from '@/Pages/Organization/Payments';
 import Credits from '@/Pages/Organization/Credits';
 import Mailboxes from '@/Pages/Organization/Mailboxes';
 import Licenses from '@/Pages/Organization/Licenses';
+import Apps from '@/Pages/Organization/Apps/Index'
 
 export default function Show({
     organization,
@@ -13,6 +14,7 @@ export default function Show({
     payments = [],
     credits,
     licenses,
+    apps = [],
     mailboxes = {},
     licenseFilters = {},
     mailboxFilters = {},
@@ -21,6 +23,7 @@ export default function Show({
     console.log('Credits in Show page:', credits);
     console.log('Licenses:', licenses);
     console.log('mailboxes:', mailboxes)
+    console.log('apps:', apps)
 
     const activeTab = new URLSearchParams(window.location.search).get('tab') || 'subscriptions';
 
@@ -30,7 +33,7 @@ export default function Show({
 
             <div>
                 {/* Tab Controls */}
-                <div className="mb-6 border-b border-gray-200">
+                <div className="border-b border-gray-200">
                     <nav className="-mb-px flex space-x-8">
                         <button
                             onClick={() => router.get(`/organization/${organization.id}`, {
@@ -102,6 +105,20 @@ export default function Show({
                         >
                             Mailboxes
                         </button>
+                        <button
+                            onClick={() => router.get(`/organization/${organization.id}`, {
+                                tab: 'apps',
+                            }, {
+                                preserveState: true,
+                                preserveScroll: true,
+                            })}
+                            className={`py-4 px-1 border-b-2 text-sm font-medium ${activeTab === 'apps'
+                                ? 'border-indigo-500 text-indigo-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            Apps
+                        </button>
                     </nav>
                 </div>
 
@@ -130,6 +147,9 @@ export default function Show({
                         pagination={licenses}
                         licenseFilters={licenseFilters}
                     />
+                )}
+                {activeTab === 'apps' && (
+                    <Apps apps={apps} />
                 )}
             </div>
         </AuthenticatedLayout>
