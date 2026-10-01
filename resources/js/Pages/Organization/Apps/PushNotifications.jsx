@@ -1,9 +1,10 @@
 import React from 'react';
 import TableView from '@/Components/DataTable/TableView';
 
-export default function SmsCampaigns({ campaigns = [] }) {
-    console.log('campaigns:', campaigns);
-    const smscampaignColumns = [
+export default function PushNotifications({ campaigns = [] }) {
+    console.log('push notification campaigns:', campaigns);
+
+    const pushNotificationColumns = [
         {
             title: 'Campaign Name',
             data: 'campaign_name',
@@ -76,7 +77,7 @@ export default function SmsCampaigns({ campaigns = [] }) {
 
     return (
         <TableView
-            columns={smscampaignColumns}
+            columns={pushNotificationColumns}
             data={campaigns}
         />
     );

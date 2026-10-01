@@ -5,6 +5,7 @@ import { FiX } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 
 export default function EditPlanModal({ organization, plans, isOpen, onClose }) {
+    const isSamePlan = Boolean(organization?.plan_id) && data.plan_id === organization.plan_id;
     // 1. Move hooks to top level (ALWAYS call hooks unconditionally)
     const { data, setData, post, processing, errors, clearErrors } = useForm({
         plan_id: organization?.plan_id || '',
@@ -30,11 +31,14 @@ export default function EditPlanModal({ organization, plans, isOpen, onClose }) 
                 });
                 onClose();
             },
-            onError: () => {
+            onError: (errs) => {
+                // Grab the first validation error message, or fallback to a default string
+                const errorMessage = Object.values(errs)[0] || 'The organization plan could not be updated.';
+
                 Swal.fire({
                     icon: 'error',
                     title: 'Something went wrong',
-                    text: 'The organization plan could not be updated.',
+                    text: errorMessage,
                     confirmButtonText: 'OK',
                 });
             },
@@ -102,7 +106,7 @@ export default function EditPlanModal({ organization, plans, isOpen, onClose }) 
                         disabled={
                             processing ||
                             !data.plan_id ||
-                            data.plan_id === organization.plan_id
+                            isSamePlan
                         }
                         className="px-6 py-2 text-sm font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-sm"
                     >

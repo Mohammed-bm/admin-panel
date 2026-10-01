@@ -31,7 +31,7 @@ export default function AuthenticatedLayout({ header, children }) {
                 <Box
                     component="main"
                     sx={{
-                        pt: '80px',
+                        pt: '30px',
                         px: { xs: 2, sm: 3.5 },
                         pb: 4,
                     }}

@@ -15,4 +15,9 @@ class App extends Model
             'uuid'
         );
     }
+
+    public function smsCampaigns()
+    {
+        return $this->hasMany(SmsCampaign::class, 'app_uuid', 'uuid');
+    }
 }

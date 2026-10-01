@@ -99,7 +99,7 @@ export default function Credits({ credits = [] }) {
 
     if (!creditData) {
         return (
-            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
+            <div className="mt-6 rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
                 No credit records found.
             </div>
         );

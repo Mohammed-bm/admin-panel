@@ -8,8 +8,17 @@ class OrganizationCapacity extends Model
 {
     protected $table = 'organization_capacities';
 
-    protected $casts = [ 
-        'capacities' => 'array', 
-        'usage' => 'array', 
+    protected $fillable = [
+        'organization_id',
+        'user_id',
+        'plan_id',
+        'capacities',
+        'usage',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'capacities' => 'array',
+        'usage' => 'array',
     ];
 }

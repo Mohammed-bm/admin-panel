@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography, IconButton, Collapse, Paper, Chip } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import ConsolidatedStatBar from './CampaignStatsGrid';
+import ConsolidatedStatBar from './Stats/CampaignStatsGrid';
 import CampaignsTable from './CampaignsTable'; // Your existing table component
 
 export default function AppAccordionItem({ app }) {

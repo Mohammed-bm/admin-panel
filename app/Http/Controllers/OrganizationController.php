@@ -15,6 +15,7 @@ use App\Models\PlanAllowance;
 use App\Models\AuditLog;
 use App\Models\Organization;
 use App\Models\App;
+use Illuminate\Support\Facades\DB;
 use App\Models\EmailCampaign;
 use App\Models\EmailMetric;
 use App\Models\EmailCampaignRecipient;
@@ -26,7 +27,6 @@ use App\Models\MailboxLicense;
 use App\Models\MyMailbox;
 use App\Support\Filters\DateFilter;
 use App\Support\Filters\SearchFilter;
-use App\Support\Pagination\Paginator;
 
 use Illuminate\Support\Facades\Log;
 
@@ -283,7 +283,6 @@ class OrganizationController extends Controller
             $apps->getCollection()->transform(function ($app) use ($subTab, $campaignsPerPage) {
 
                 if ($subTab === 'emails') {
-
                     $campaigns = $app->emailCampaigns()
                         ->with('metric')
                         ->withCount('recipients')
@@ -294,21 +293,123 @@ class OrganizationController extends Controller
                             "campaigns_page_{$app->id}"
                         );
 
-                    $campaigns->getCollection()->transform(function ($campaign) {
+                    // 1. Calculate summary stats matching the recipient relationship
+                    $totalCampaigns = DB::table('email_campaigns')
+                        ->where('app_uuid', $app->uuid)
+                        ->count();
 
+                    $totalRecipients = DB::table('email_campaigns as ec')
+                        ->join('email_campaign_recipients as ecr', 'ecr.email_campaign_id', '=', 'ec.id')
+                        ->where('ec.app_uuid', $app->uuid)
+                        ->count();
+
+                    $metrics = DB::table('email_campaigns as ec')
+                        ->join('email_metrics as em', 'em.campaign_id', '=', 'ec.id')
+                        ->where('ec.app_uuid', $app->uuid)
+                        ->selectRaw('
+                    COALESCE(SUM(em.success_count), 0) AS delivered,
+                    COALESCE(SUM(em.open_count), 0) AS opened,
+                    COALESCE(SUM(em.click_count), 0) AS clicked,
+                    COALESCE(SUM(em.hard_bounce + em.soft_bounce), 0) AS failed
+                    ')
+                        ->first();
+
+                    $delivered = $metrics->delivered ?? 0;
+                    $opened = $metrics->opened ?? 0;
+                    $clicked = $metrics->clicked ?? 0;
+                    $failed = $metrics->failed ?? 0;
+
+                    $app->stats = [
+                        'campaigns' => $totalCampaigns,
+                        'recipients' => $totalRecipients,
+                        'delivered' => $delivered,
+                        'delivered_percentage' => $totalRecipients > 0 ? round(($delivered / $totalRecipients) * 100, 2) : 0,
+                        'opened' => $opened,
+                        'opened_percentage' => $delivered > 0 ? round(($opened / $delivered) * 100, 2) : 0,
+                        'clicked' => $clicked,
+                        'clicked_percentage' => $delivered > 0 ? round(($clicked / $delivered) * 100, 2) : 0,
+                        'failed' => $failed,
+                    ];
+
+                    // 2. Transform campaign collection for the UI
+                    $campaigns->getCollection()->transform(function ($campaign) {
                         return [
                             'campaign_name' => $campaign->campaign_name,
                             'type' => $campaign->type,
-
                             'recipients' => $campaign->recipients_count,
-
                             'sent_count' => $campaign->metric?->sent_count ?? 0,
                             'open_count' => $campaign->metric?->open_count ?? 0,
                             'click_count' => $campaign->metric?->click_count ?? 0,
                             'soft_bounce' => $campaign->metric?->soft_bounce ?? 0,
                             'hard_bounce' => $campaign->metric?->hard_bounce ?? 0,
-
                             'launched' => $campaign->updated_at?->format('h:i A, d M Y'),
+                        ];
+                    });
+
+                    $app->campaigns = $campaigns;
+                } elseif ($subTab === 'sms') {
+
+                    $campaigns = $app->smsCampaigns()
+                        ->with('metric')
+                        ->orderByDesc('updated_at')
+                        ->paginate(
+                            $campaignsPerPage,
+                            ['*'],
+                            "campaigns_page_{$app->id}"
+                        );
+
+                    // 1. Calculate summary stats for SMS
+                    $totalCampaigns = DB::table('sms_campaigns')
+                        ->where('app_uuid', $app->uuid)
+                        ->count();
+
+                    // Sum amount where debited_from is wallet
+                    $totalWalletAmount = DB::table('sms_campaigns')
+                        ->where('app_uuid', $app->uuid)
+                        ->where('debited_from', 'wallet')
+                        ->sum('amount');
+
+                    $metrics = DB::table('sms_campaigns as sc')
+                        ->join('sms_metrics as sm', 'sm.campaign_id', '=', 'sc.id')
+                        ->where('sc.app_uuid', $app->uuid)
+                        ->selectRaw('
+            COALESCE(SUM(sm.total_records), 0) AS total_records,
+            COALESCE(SUM(sm.sent_count), 0) AS sent_count,
+            COALESCE(SUM(sm.failed_count), 0) AS failed_count
+        ')
+                        ->first();
+
+                    $totalRecipients = $metrics->total_records ?? 0;
+                    $sentCount = $metrics->sent_count ?? 0;
+                    $failed = $metrics->failed_count ?? 0;
+                    $delivered = max($sentCount - $failed, 0);
+
+                    $app->stats = [
+                        'campaigns' => $totalCampaigns,
+                        'recipients' => $totalRecipients,
+                        'sent' => $sentCount,
+                        'delivered' => $delivered,
+                        'delivered_percentage' => $totalRecipients > 0 ? round(($delivered / $totalRecipients) * 100, 2) : 0,
+                        'failed' => $failed,
+                        'amount' => round($totalWalletAmount, 2),
+                    ];
+
+                    // 2. Transform SMS campaign collection for the UI
+                    $campaigns->getCollection()->transform(function ($campaign) {
+                        return [
+                            'campaign_name' => $campaign->campaign_name,
+                            'type' => $campaign->type,
+                            'status' => $campaign->status,
+                            'scheduled_timezone' => $campaign->scheduled_timezone,
+                            'scheduled_time' => $campaign->scheduled_time
+                                ? \Carbon\Carbon::parse($campaign->scheduled_time)->format('h:i A, d M Y')
+                                : null,
+                            'amount' => $campaign->amount,
+                            'debited_from' => $campaign->debited_from,
+                            'total_records' => $campaign->metric?->total_records ?? 0,
+                            'sent_count' => $campaign->metric?->sent_count ?? 0,
+                            'failed_count' => $campaign->metric?->failed_count ?? 0,
+                            'updated_at' => $campaign->metric?->updated_at?->format('h:i A, d M Y'),
                         ];
                     });
 
@@ -361,13 +462,7 @@ class OrganizationController extends Controller
                     $organization->id
                 )->first();
 
-                if (!$capacity) {
-                    return back()->withErrors([
-                        'user_id' => 'No user found for this organization'
-                    ]);
-                }
-
-                $userId = $capacity->user_id;
+                $userId = $capacity?->user_id ?? $organization->user_id ?? auth()->id();
 
                 if (!$userId) {
                     return back()->withErrors([
@@ -467,7 +562,7 @@ class OrganizationController extends Controller
             ]);
 
             return back()->withErrors([
-                'plan_id' => 'Plan assignment failed'
+                'plan_id' => 'Plan assignment failed: ' . $e->getMessage()
             ]);
         }
     }

@@ -30,6 +30,9 @@ export default function Show({
     return (
         <AuthenticatedLayout>
             <Head title="Subscription Details" />
+            <div>
+                {organization.name}
+            </div>
 
             <div>
                 {/* Tab Controls */}

@@ -1,53 +1,17 @@
 import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
-import ConsolidatedStatBar from '@/Components/CampaignStatsGrid';
+import ConsolidatedStatBar from '@/Components/Stats/CampaignStatsGrid';
 import EmailCampaigns from '@/Pages/Organization/Apps/EmailCampaigns';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import Pagination from '@/Components/DataTable/Pagination'
+import SmsCampaigns from '@/Pages/Organization/Apps/SmsCampaigns';
+import PushNotifications from '@/Pages/Organization/Apps/PushNotifications';
 
-export default function Apps({ organization, apps = {}, stats = {} }) {
+export default function Apps({ apps = {}, stats = {} }) {
     console.log(apps);
     const queryParams = new URLSearchParams(window.location.search);
     const activeSubTab = queryParams.get('sub_tab') || 'emails';
-
-    const currentPage = apps.current_page || 1;
-    const currentPerPage = apps.per_page || 10;
-    const lastPage = apps.last_page || 1;
-
-    const handlePageChange = (page) => {
-        router.get(
-            window.location.pathname,
-            {
-                tab: 'apps',
-                sub_tab: activeSubTab,
-                page,
-                per_page: currentPerPage,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
-
-    const handleLengthChange = (perPage) => {
-        router.get(
-            window.location.pathname,
-            {
-                tab: 'apps',
-                sub_tab: activeSubTab,
-                page: 1,
-                per_page: perPage,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: true,
-            }
-        );
-    };
 
     // State to track expanded apps (allows opening multiple simultaneously)
     const [openAppIds, setOpenAppIds] = useState([]);
@@ -137,6 +101,16 @@ export default function Apps({ organization, apps = {}, stats = {} }) {
                     >
                         SMS Campaigns
                     </button>
+
+                    <button
+                        onClick={() => handleSubTabChange('push')}
+                        className={`py-3 px-3 border-b-2 text-sm font-medium ${activeSubTab === 'push'
+                            ? 'border-indigo-500 text-indigo-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Push Notification
+                    </button>
                 </nav>
             </div>
 
@@ -188,8 +162,27 @@ export default function Apps({ organization, apps = {}, stats = {} }) {
                                 {isExpanded && (
                                     <>
                                         <div className="border-t border-gray-100 p-3 bg-gray-50/50 flex flex-col">
-                                            <ConsolidatedStatBar stats={app.stats || stats} />
-                                            <EmailCampaigns campaigns={campaignsList} />
+                                            <ConsolidatedStatBar
+                                                stats={app.stats || stats}
+                                                type={activeSubTab}
+                                            />
+                                            {activeSubTab === 'emails' && (
+
+                                                <EmailCampaigns
+                                                    campaigns={campaignsList}
+                                                />
+
+                                            )}
+                                            {activeSubTab === 'sms' && (
+                                                <SmsCampaigns
+                                                    campaigns={campaignsList}
+                                                />
+                                            )}
+                                            {activeSubTab === 'push' && (
+                                                <PushNotifications
+                                                    campaigns={campaignsList}
+                                                />
+                                            )}
                                         </div>
                                         <Pagination
                                             currentPage={campaignsList.current_page || 1}

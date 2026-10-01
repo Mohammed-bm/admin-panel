@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\App; 
 use App\Models\StripeSubscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -29,8 +30,8 @@ class AdminSubscriptionService
                 ->first();
 
             // 2. Get information that needs to be copied
-            $appUuid = $oldSubscription?->app_uuid;
-            $stripeCustomerId = $oldSubscription?->stripe_customer_id;
+            $appUuid = $oldSubscription?->app_uuid ?? App::where('organization_id', $organizationId)->value('uuid');
+            $stripeCustomerId = $oldSubscription?->stripe_customer_id ?? 0;
             $puuid = $oldSubscription?->puuid;
 
             // 3. Cancel the old subscription record
