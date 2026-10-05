@@ -76,7 +76,7 @@ export default function EditPlanModal({ organization, plans, isOpen, onClose }) 
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 max-w-2xl mx-auto gap-6 items-stretch">
                         {plans.map((plan) => (
                             <PlanCard
                                 key={plan.id}

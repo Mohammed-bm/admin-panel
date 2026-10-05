@@ -6,65 +6,63 @@ export default function PushNotifications({ campaigns = [] }) {
 
     const pushNotificationColumns = [
         {
-            title: 'Campaign Name',
-            data: 'campaign_name',
-            name: 'campaign_name',
+            title: 'Title ',
+            data: 'title',
+            name: 'title',
+            render: (value) => value || '-',
+        },
+        {
+            title: 'Template Name',
+            data: 'template_name',
+            name: 'template_name',
+            render: (value) => value || '-',
         },
         {
             title: 'Type',
             data: 'type',
             name: 'type',
+            render: (value) => value || '-',
         },
         {
             title: 'Status',
             data: 'status',
             name: 'status',
+            render: (value) => value || '-',
         },
         {
-            title: 'Total Records',
-            data: 'total_records',
-            name: 'total_records',
+            title: 'Total Devices',
+            data: 'total_devices',
+            name: 'total_devices',
+            render: (value) => Number(value || 0).toLocaleString(),
+        },
+        {
+            title: 'Pending',
+            data: 'pending_count',
+            name: 'pending_count',
+            render: (value) => Number(value || 0).toLocaleString(),
         },
         {
             title: 'Sent',
             data: 'sent_count',
             name: 'sent_count',
+            render: (value) => Number(value || 0).toLocaleString(),
         },
         {
-            title: 'Failed',
-            data: 'failed_count',
-            name: 'failed_count',
+            title: 'Temp Blocked',
+            data: 'temp_blocked_count',
+            name: 'temp_blocked_count',
+            render: (value) => Number(value || 0).toLocaleString(),
         },
         {
-            title: 'Amount',
-            data: 'amount',
-            name: 'amount',
-            render: (value) => {
-                if (value === null || value === undefined || value === '') {
-                    return '-';
-                }
-                const numeric = parseFloat(value);
-                if (isNaN(numeric)) {
-                    return '-';
-                }
-                return `$${numeric.toFixed(2)}`;
-            },
-        },
-        {
-            title: 'Debited From',
-            data: 'debited_from',
-            name: 'debited_from',
-        },
-        {
-            title: 'Scheduled Timezone',
-            data: 'scheduled_timezone',
-            name: 'scheduled_timezone',
-            render: (value) => value || '-',
+            title: 'Perm Blocked',
+            data: 'perm_blocked_count',
+            name: 'perm_blocked_count',
+            render: (value) => Number(value || 0).toLocaleString(),
         },
         {
             title: 'Scheduled Time',
-            data: 'scheduled_time',
-            name: 'scheduled_time',
+            data: 'schedule_time',
+            name: 'schedule_time',
             render: (value) => value || '-',
         },
         {

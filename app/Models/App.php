@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\EmailCampaign;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class App extends Model
 {
@@ -19,5 +20,31 @@ class App extends Model
     public function smsCampaigns()
     {
         return $this->hasMany(SmsCampaign::class, 'app_uuid', 'uuid');
+    }
+
+    /**
+     * Get all push notifications for the app.
+     */
+    public function pushNotifications(): HasMany
+    {
+        return $this->hasMany(PushNotification::class, 'app_id', 'id');
+    }
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'app_id');
+    }
+    public function transactionalEmailLogs()
+    {
+        return $this->hasMany(TransactionalLogDetection::class, 'app_uuid', 'uuid')
+            ->where('api_type', 'email');
+    }
+
+    /**
+     * Transactional SMS logs relationship
+     */
+    public function transactionalSmsLogs()
+    {
+        return $this->hasMany(TransactionalLogDetection::class, 'app_uuid', 'uuid')
+            ->where('api_type', 'sms');
     }
 }

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SmsMetric extends Model
 {
-    public function campaign()
+    public function smsCampaign()
     {
         return $this->belongsTo(
             SmsCampaign::class,

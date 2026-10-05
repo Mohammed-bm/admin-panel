@@ -2,6 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { router, Head } from '@inertiajs/react';
 import Pagination from '@/Components/DataTable/Pagination';
 import { useRef } from 'react';
+import { FiEye, FiRepeat } from 'react-icons/fi';
 
 import { TableSearchInput, TableFilterDropdown, TableView } from '@/components/DataTable';
 
@@ -49,7 +50,22 @@ export default function Index({ users, filters = {} }) {
         </span>`;
             },
         },
+        { data: null, name: 'action', title: 'Action' },
     ];
+
+    const slots = {
+        action: (data, row) => (
+            <div>
+                {/* View Organization */}
+                <button
+                    type="button"
+                    onClick={() => router.visit(`/users/${row.id}`)}
+                >
+                    <FiEye size={18} />
+                </button>
+            </div>
+        ),
+    };
 
     const { search = '', filter = '' } = filters;
 
@@ -158,6 +174,7 @@ export default function Index({ users, filters = {} }) {
                             ref={tableRef}
                             columns={columns}
                             data={tableData}
+                            slots={slots}
                         />
                     </div>
                     <div className="bg-white px-4 rounded-xl border border-gray-200/80 shadow-sm">

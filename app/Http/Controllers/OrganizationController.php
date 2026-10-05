@@ -27,8 +27,13 @@ use App\Models\MailboxLicense;
 use App\Models\MyMailbox;
 use App\Support\Filters\DateFilter;
 use App\Support\Filters\SearchFilter;
-
+use App\Models\PushNotification;
+use App\Models\PushNotificationCampaignDevice;
 use Illuminate\Support\Facades\Log;
+use App\Models\SendReport;
+use App\Models\Notification;
+use App\Models\SmsMetric;
+use App\Models\TransactionalLogDetection;
 
 class OrganizationController extends Controller
 {
@@ -267,7 +272,7 @@ class OrganizationController extends Controller
         if ($tab === 'apps') {
 
             $appsPerPage = $request->integer('per_page', 10);
-            $campaignsPerPage = $request->integer('campaigns_per_page', 10);
+            // $campaignsPerPage = $request->integer('campaigns_per_page', 10);
 
             $apps = App::where('organization_id', $organization->id)
                 ->select(
@@ -280,136 +285,323 @@ class OrganizationController extends Controller
                 ->orderByDesc('email_campaigns_max_updated_at')
                 ->paginate($appsPerPage);
 
-            $apps->getCollection()->transform(function ($app) use ($subTab, $campaignsPerPage) {
+            $apps->getCollection()->transform(function ($app) use ($request, $subTab) {
+
+                $campaignPageParam = "campaigns_page_{$app->id}";
+                $campaignPerPageParam = "campaigns_per_page_{$app->id}";
+                $campaignsPerPage = $request->integer($campaignPerPageParam, 10);
 
                 if ($subTab === 'emails') {
+
+                    // 1. Fetch paginated email campaigns with relations and counts
                     $campaigns = $app->emailCampaigns()
                         ->with('metric')
                         ->withCount('recipients')
-                        ->orderByDesc('updated_at')
-                        ->paginate(
-                            $campaignsPerPage,
-                            ['*'],
-                            "campaigns_page_{$app->id}"
-                        );
+                        ->latest('updated_at')
+                        ->paginate($campaignsPerPage, ['*'], $campaignPageParam);
 
-                    // 1. Calculate summary stats matching the recipient relationship
-                    $totalCampaigns = DB::table('email_campaigns')
-                        ->where('app_uuid', $app->uuid)
-                        ->count();
+                    // 2. Compute aggregate metrics using Eloquent queries
+                    $totalRecipients = EmailCampaignRecipient::whereHas('emailCampaign', fn($q) => $q->where('app_uuid', $app->uuid))->count();
 
-                    $totalRecipients = DB::table('email_campaigns as ec')
-                        ->join('email_campaign_recipients as ecr', 'ecr.email_campaign_id', '=', 'ec.id')
-                        ->where('ec.app_uuid', $app->uuid)
-                        ->count();
+                    $metricsQuery = EmailMetric::whereHas('emailCampaign', fn($q) => $q->where('app_uuid', $app->uuid));
 
-                    $metrics = DB::table('email_campaigns as ec')
-                        ->join('email_metrics as em', 'em.campaign_id', '=', 'ec.id')
-                        ->where('ec.app_uuid', $app->uuid)
-                        ->selectRaw('
-                    COALESCE(SUM(em.success_count), 0) AS delivered,
-                    COALESCE(SUM(em.open_count), 0) AS opened,
-                    COALESCE(SUM(em.click_count), 0) AS clicked,
-                    COALESCE(SUM(em.hard_bounce + em.soft_bounce), 0) AS failed
-                    ')
-                        ->first();
-
-                    $delivered = $metrics->delivered ?? 0;
-                    $opened = $metrics->opened ?? 0;
-                    $clicked = $metrics->clicked ?? 0;
-                    $failed = $metrics->failed ?? 0;
+                    $delivered = (int) (clone $metricsQuery)->sum('success_count');
+                    $opened    = (int) (clone $metricsQuery)->sum('open_count');
+                    $clicked   = (int) (clone $metricsQuery)->sum('click_count');
+                    $failed    = (int) (clone $metricsQuery)->sum(DB::raw('hard_bounce + soft_bounce'));
 
                     $app->stats = [
-                        'campaigns' => $totalCampaigns,
-                        'recipients' => $totalRecipients,
-                        'delivered' => $delivered,
+                        'campaigns'            => $campaigns->total(),
+                        'recipients'           => $totalRecipients,
+                        'delivered'            => $delivered,
                         'delivered_percentage' => $totalRecipients > 0 ? round(($delivered / $totalRecipients) * 100, 2) : 0,
-                        'opened' => $opened,
-                        'opened_percentage' => $delivered > 0 ? round(($opened / $delivered) * 100, 2) : 0,
-                        'clicked' => $clicked,
-                        'clicked_percentage' => $delivered > 0 ? round(($clicked / $delivered) * 100, 2) : 0,
-                        'failed' => $failed,
+                        'opened'               => $opened,
+                        'opened_percentage'    => $delivered > 0 ? round(($opened / $delivered) * 100, 2) : 0,
+                        'clicked'              => $clicked,
+                        'clicked_percentage'   => $delivered > 0 ? round(($clicked / $delivered) * 100, 2) : 0,
+                        'failed'               => $failed,
                     ];
 
-                    // 2. Transform campaign collection for the UI
+                    // 3. Transform campaign collection for UI
                     $campaigns->getCollection()->transform(function ($campaign) {
                         return [
                             'campaign_name' => $campaign->campaign_name,
-                            'type' => $campaign->type,
-                            'recipients' => $campaign->recipients_count,
-                            'sent_count' => $campaign->metric?->sent_count ?? 0,
-                            'open_count' => $campaign->metric?->open_count ?? 0,
-                            'click_count' => $campaign->metric?->click_count ?? 0,
-                            'soft_bounce' => $campaign->metric?->soft_bounce ?? 0,
-                            'hard_bounce' => $campaign->metric?->hard_bounce ?? 0,
-                            'launched' => $campaign->updated_at?->format('h:i A, d M Y'),
+                            'type'          => $campaign->type,
+                            'recipients'    => (int) $campaign->recipients_count,
+                            'sent_count'    => (int) ($campaign->metric?->sent_count ?? 0),
+                            'open_count'    => (int) ($campaign->metric?->open_count ?? 0),
+                            'click_count'   => (int) ($campaign->metric?->click_count ?? 0),
+                            'soft_bounce'   => (int) ($campaign->metric?->soft_bounce ?? 0),
+                            'hard_bounce'   => (int) ($campaign->metric?->hard_bounce ?? 0),
+                            'launched'      => $campaign->updated_at
+                                ? \Carbon\Carbon::parse($campaign->updated_at)->format('h:i A, d M Y')
+                                : null,
                         ];
                     });
 
                     $app->campaigns = $campaigns;
                 } elseif ($subTab === 'sms') {
 
+                    // 1. Fetch paginated SMS campaigns with relations
                     $campaigns = $app->smsCampaigns()
                         ->with('metric')
-                        ->orderByDesc('updated_at')
-                        ->paginate(
-                            $campaignsPerPage,
-                            ['*'],
-                            "campaigns_page_{$app->id}"
-                        );
+                        ->latest('updated_at')
+                        ->paginate($campaignsPerPage, ['*'], $campaignPageParam);
 
-                    // 1. Calculate summary stats for SMS
-                    $totalCampaigns = DB::table('sms_campaigns')
-                        ->where('app_uuid', $app->uuid)
-                        ->count();
+                    // 2. Compute aggregate metrics using Eloquent queries
+                    $campaignIds = $app->smsCampaigns()->pluck('id');
 
-                    // Sum amount where debited_from is wallet
-                    $totalWalletAmount = DB::table('sms_campaigns')
-                        ->where('app_uuid', $app->uuid)
+                    $totalWalletAmount = (float) $app->smsCampaigns()
                         ->where('debited_from', 'wallet')
                         ->sum('amount');
 
-                    $metrics = DB::table('sms_campaigns as sc')
-                        ->join('sms_metrics as sm', 'sm.campaign_id', '=', 'sc.id')
-                        ->where('sc.app_uuid', $app->uuid)
-                        ->selectRaw('
-            COALESCE(SUM(sm.total_records), 0) AS total_records,
-            COALESCE(SUM(sm.sent_count), 0) AS sent_count,
-            COALESCE(SUM(sm.failed_count), 0) AS failed_count
-        ')
-                        ->first();
+                    $metricsQuery = SmsMetric::whereIn('campaign_id', $campaignIds);
 
-                    $totalRecipients = $metrics->total_records ?? 0;
-                    $sentCount = $metrics->sent_count ?? 0;
-                    $failed = $metrics->failed_count ?? 0;
-                    $delivered = max($sentCount - $failed, 0);
+                    $totalRecipients = (int) (clone $metricsQuery)->sum('total_records');
+                    $sentCount       = (int) (clone $metricsQuery)->sum('sent_count');
+                    $failed          = (int) (clone $metricsQuery)->sum('failed_count');
+                    $delivered       = max($sentCount - $failed, 0);
 
                     $app->stats = [
-                        'campaigns' => $totalCampaigns,
-                        'recipients' => $totalRecipients,
-                        'sent' => $sentCount,
-                        'delivered' => $delivered,
+                        'campaigns'            => $campaigns->total(),
+                        'recipients'           => $totalRecipients,
+                        'sent'                 => $sentCount,
+                        'delivered'            => $delivered,
                         'delivered_percentage' => $totalRecipients > 0 ? round(($delivered / $totalRecipients) * 100, 2) : 0,
-                        'failed' => $failed,
-                        'amount' => round($totalWalletAmount, 2),
+                        'failed'               => $failed,
+                        'amount'               => round($totalWalletAmount, 2),
                     ];
 
-                    // 2. Transform SMS campaign collection for the UI
+                    // 3. Transform campaign collection for UI
                     $campaigns->getCollection()->transform(function ($campaign) {
                         return [
-                            'campaign_name' => $campaign->campaign_name,
-                            'type' => $campaign->type,
-                            'status' => $campaign->status,
+                            'campaign_name'      => $campaign->campaign_name,
+                            'type'               => $campaign->type,
+                            'status'             => $campaign->status,
                             'scheduled_timezone' => $campaign->scheduled_timezone,
-                            'scheduled_time' => $campaign->scheduled_time
+                            'scheduled_time'     => $campaign->scheduled_time
                                 ? \Carbon\Carbon::parse($campaign->scheduled_time)->format('h:i A, d M Y')
                                 : null,
-                            'amount' => $campaign->amount,
-                            'debited_from' => $campaign->debited_from,
-                            'total_records' => $campaign->metric?->total_records ?? 0,
-                            'sent_count' => $campaign->metric?->sent_count ?? 0,
-                            'failed_count' => $campaign->metric?->failed_count ?? 0,
-                            'updated_at' => $campaign->metric?->updated_at?->format('h:i A, d M Y'),
+                            'amount'             => $campaign->amount,
+                            'debited_from'       => $campaign->debited_from,
+                            'total_records'      => (int) ($campaign->metric?->total_records ?? 0),
+                            'sent_count'         => (int) ($campaign->metric?->sent_count ?? 0),
+                            'failed_count'       => (int) ($campaign->metric?->failed_count ?? 0),
+                            'updated_at'         => $campaign->metric?->updated_at
+                                ? \Carbon\Carbon::parse($campaign->metric->updated_at)->format('h:i A, d M Y')
+                                : null,
+                        ];
+                    });
+
+                    $app->campaigns = $campaigns;
+                } elseif ($subTab === 'push') {
+
+                    // 1. Fetch paginated push notifications with conditional relationship counts
+                    $campaigns = $app->pushNotifications()
+                        ->select([
+                            'id',
+                            'app_id',
+                            'Title',
+                            'template_name',
+                            'type',
+                            'status',
+                            'shedule_time',
+                            'updated_at'
+                        ])
+                        ->withCount([
+                            'campaignDevices as total_devices',
+                            'campaignDevices as pending_count' => fn($q) => $q->where('status', 0),
+                            'campaignDevices as sent_count' => fn($q) => $q->where('status', 1),
+                            'campaignDevices as temp_blocked_count' => fn($q) => $q->where('status', 2),
+                            'campaignDevices as perm_blocked_count' => fn($q) => $q->where('status', 3),
+                        ])
+                        ->latest('id')
+                        ->paginate($campaignsPerPage, ['*'], $campaignPageParam);
+
+                    // 2. Fetch overall metrics across all device records for this app via relationship query
+                    $deviceQuery = PushNotificationCampaignDevice::whereHas('pushNotification', fn($q) => $q->where('app_id', $app->id));
+
+                    $app->stats = [
+                        'total_push_notification'   => $campaigns->total(),
+                        'total_occurrence_count'    => (int) (clone $deviceQuery)->count(),
+                        'total_pending'             => (int) (clone $deviceQuery)->where('status', 0)->count(),
+                        'total_sent'                => (int) (clone $deviceQuery)->where('status', 1)->count(),
+                        'total_temporary_blocked'   => (int) (clone $deviceQuery)->where('status', 2)->count(),
+                        'total_permanently_blocked' => (int) (clone $deviceQuery)->where('status', 3)->count(),
+                    ];
+
+                    // 3. Transform the paginated Eloquent collection for UI
+                    $campaigns->getCollection()->transform(function ($campaign) {
+                        return [
+                            'push_notification_id' => $campaign->id,
+                            'title'                => $campaign->Title,
+                            'template_name'        => $campaign->template_name,
+                            'type'                 => $campaign->type,
+                            'status'               => $campaign->status,
+                            'schedule_time'        => $campaign->shedule_time
+                                ? $campaign->shedule_time->format('h:i A, d M Y')
+                                : null,
+                            'total_devices'        => (int) $campaign->total_devices,
+                            'pending_count'        => (int) $campaign->pending_count,
+                            'sent_count'           => (int) $campaign->sent_count,
+                            'temp_blocked_count'   => (int) $campaign->temp_blocked_count,
+                            'perm_blocked_count'   => (int) $campaign->perm_blocked_count,
+                            'updated_at'           => $campaign->updated_at
+                                ? $campaign->updated_at->format('h:i A, d M Y')
+                                : null,
+                        ];
+                    });
+
+                    $app->campaigns = $campaigns;
+                } elseif ($subTab === 'web') {
+
+                    // 1. Fetch paginated web notifications with conditional counts using Eloquent
+                    $campaigns = $app->notifications()
+                        ->select([
+                            'id',
+                            'app_id',
+                            'title',
+                            'body',
+                            'status',
+                            'total_targets',
+                            'scheduled_at',
+                            'updated_at',
+                        ])
+                        ->withCount([
+                            'sendReports as delivered' => fn($q) => $q->where('status', 'delivered'),
+                            'sendReports as failed'    => fn($q) => $q->where('status', 'failed'),
+                        ])
+                        ->latest('updated_at')
+                        ->paginate($campaignsPerPage, ['*'], $campaignPageParam);
+
+                    // 2. Fetch summary metrics strictly through Eloquent models
+                    $sendReportQuery = SendReport::whereHas('notification', fn($q) => $q->where('app_id', $app->id));
+
+                    $app->stats = [
+                        'total_push_notification' => $campaigns->total(),
+                        'total_devices'           => (int) $app->notifications()->sum('total_targets'),
+                        'total_delivered'         => (int) (clone $sendReportQuery)->where('status', 'delivered')->count(),
+                        'total_failed'            => (int) (clone $sendReportQuery)->where('status', 'failed')->count(),
+                    ];
+
+                    // 3. Transform the paginated Eloquent collection for the UI
+                    $campaigns->getCollection()->transform(function ($notification) {
+                        return [
+                            'id'            => $notification->id,
+                            'title'         => $notification->title,
+                            'body'          => $notification->body,
+                            'status'        => $notification->status,
+                            'total_targets' => (int) ($notification->total_targets ?? 0),
+                            'delivered'     => (int) $notification->delivered,
+                            'failed'        => (int) $notification->failed,
+                            'scheduled_at'  => $notification->scheduled_at
+                                ? \Carbon\Carbon::parse($notification->scheduled_at)->format('h:i A, d M Y')
+                                : null,
+                            'launched_at' => $notification->updated_at
+                                ? \Carbon\Carbon::parse($notification->updated_at)->format('h:i A, d M Y')
+                                : null,
+                        ];
+                    });
+
+                    $app->campaigns = $campaigns;
+                } elseif ($subTab === 'transactional_email') {
+
+                    // 1. Fetch paginated transactional email logs using Eloquent
+                    $campaigns = $app->transactionalEmailLogs()
+                        ->select([
+                            'id',
+                            'app_uuid',
+                            'from_email',
+                            'to_email',
+                            'subject',
+                            'template_key',
+                            'mode',
+                            'status',
+                            'created_at',
+                            'updated_at',
+                        ])
+                        ->latest('created_at')
+                        ->paginate($campaignsPerPage, ['*'], $campaignPageParam);
+
+                    // 2. Fetch summary metrics strictly through Eloquent models
+                    $emailLogQuery = $app->transactionalEmailLogs();
+
+                    $app->stats = [
+                        'total_sent' => $campaigns->total(),
+                        'success'    => (int) (clone $emailLogQuery)->where('status', 'success')->count(),
+                        'failed'     => (int) (clone $emailLogQuery)->where('status', 'failed')->count(),
+                    ];
+
+                    // 3. Transform the paginated Eloquent collection for the UI
+                    $campaigns->getCollection()->transform(function ($log) {
+                        return [
+                            'id'           => $log->id,
+                            'from_email'   => $log->from_email,
+                            'to_email'     => $log->to_email,
+                            'subject'      => $log->subject,
+                            'template_key' => $log->template_key,
+                            'mode'         => $log->mode,
+                            'status'       => $log->status,
+                            'sent_at'      => $log->created_at
+                                ? \Carbon\Carbon::parse($log->created_at)->format('h:i A, d M Y')
+                                : null,
+                            'updated_at'   => $log->updated_at
+                                ? \Carbon\Carbon::parse($log->updated_at)->format('h:i A, d M Y')
+                                : null,
+                        ];
+                    });
+
+                    $app->campaigns = $campaigns;
+                } elseif ($subTab === 'transactional_sms') {
+
+                    // 1. Fetch paginated transactional SMS logs using Eloquent
+                    $campaigns = $app->transactionalSmsLogs()
+                        ->select([
+                            'id',
+                            'app_uuid',
+                            'country_code',
+                            'recepient_number',
+                            'msg_title',
+                            'text_preview',
+                            'template_key',
+                            'mode',
+                            'status',
+                            'scheduled_at',
+                            'created_at',
+                            'updated_at',
+                        ])
+                        ->latest('created_at')
+                        ->paginate($campaignsPerPage, ['*'], $campaignPageParam);
+
+                    // 2. Fetch summary metrics strictly through Eloquent models
+                    $smsLogQuery = $app->transactionalSmsLogs();
+
+                    $app->stats = [
+                        'total_sent'           => $campaigns->total(),
+                        'success'              => (int) (clone $smsLogQuery)->where('status', 'success')->count(),
+                        'insufficient_balance' => (int) (clone $smsLogQuery)->where('status', 'Insufficient balance')->count(),
+                        'failed'               => (int) (clone $smsLogQuery)->where('status', 'failed')->count(),
+                    ];
+
+                    // 3. Transform the paginated Eloquent collection for the UI
+                    $campaigns->getCollection()->transform(function ($log) {
+                        return [
+                            'id'               => $log->id,
+                            'recipient_number' => trim(($log->country_code ?? '') . ' ' . ($log->recepient_number ?? '')),
+                            'msg_title'        => $log->msg_title,
+                            'text_preview'     => $log->text_preview,
+                            'template_key'     => $log->template_key,
+                            'mode'             => $log->mode,
+                            'status'           => $log->status,
+                            'scheduled_at'     => $log->scheduled_at
+                                ? \Carbon\Carbon::parse($log->scheduled_at)->format('h:i A, d M Y')
+                                : null,
+                            'sent_at'          => $log->created_at
+                                ? \Carbon\Carbon::parse($log->created_at)->format('h:i A, d M Y')
+                                : null,
+                            'updated_at'       => $log->updated_at
+                                ? \Carbon\Carbon::parse($log->updated_at)->format('h:i A, d M Y')
+                                : null,
                         ];
                     });
 
