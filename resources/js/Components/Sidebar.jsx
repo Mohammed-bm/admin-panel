@@ -31,7 +31,6 @@ const OPEN_WIDTH = 220;
 const CLOSED_WIDTH = 68;
 
 const NAV_ITEMS = [
-    { text: 'Dashboard', icon: DashboardIcon, href: '/dashboard' },
     { text: 'Users', icon: PeopleIcon, href: '/users' },
     { text: 'Organization', icon: BusinessIcon, href: '/organization' }
 ];

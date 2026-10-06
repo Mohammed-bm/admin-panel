@@ -16,6 +16,8 @@ Route::get('/', function () {
     ]);
 });
 
+Route::redirect('/', '/users');
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -25,6 +27,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::get('/users/{user}', [UserController::class, 'show'])
+        ->name('users.show');
+    Route::get('/users/{user}/view', [UserController::class, 'app']);
     Route::get('/organization', [OrganizationController::class, 'index'])->name('organization.index');
     Route::get('/organization/{organization}', [OrganizationController::class, 'show'])->name('organization.show');
     Route::post(

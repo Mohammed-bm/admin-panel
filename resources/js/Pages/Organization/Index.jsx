@@ -129,7 +129,7 @@ export default function Index({ organizations, filters = {}, plans = [] }) {
 
     const handleReset = () => {
         router.get('/organization', {}, {
-            preserveState: false, // Allows clean reload of initial page state
+            preserveState: false, 
             preserveScroll: true,
         });
     };

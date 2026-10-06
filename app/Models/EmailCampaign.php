@@ -23,4 +23,14 @@ class EmailCampaign extends Model
             'id'
         );
     }
+
+    public function app()
+    {
+        return $this->belongsTo(App::class, 'app_id', 'id');
+    }
+
+    public function appByUuid()
+    {
+        return $this->belongsTo(App::class, 'app_uuid', 'uuid'); // Use 'id' as 3rd arg if apps table uses 'id'
+    }
 }

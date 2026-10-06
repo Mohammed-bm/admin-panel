@@ -70,4 +70,8 @@ class Organization extends Model
     {
         return $this->hasMany(MailboxLicenseBundle::class, 'organization_id');
     }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

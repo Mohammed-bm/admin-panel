@@ -25,4 +25,5 @@ class PushNotification extends Model
     {
         return $this->hasMany(PushNotificationCampaignDevice::class, 'push_notification_id', 'id');
     }
+    
 }

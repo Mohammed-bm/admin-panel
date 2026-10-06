@@ -23,4 +23,9 @@ class SmsCampaign extends Model
             'uuid'
         );
     }
+
+    public function appByUuid()
+    {
+        return $this->belongsTo(App::class, 'app_uuid', 'uuid');
+    }
 }

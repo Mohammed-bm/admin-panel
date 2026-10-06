@@ -10,4 +10,8 @@ class Notification extends Model
     {
         return $this->hasMany(SendReport::class, 'notification_id');
     }
+    public function app()
+    {
+        return $this->belongsTo(App::class, 'app_id', 'id');
+    }
 }

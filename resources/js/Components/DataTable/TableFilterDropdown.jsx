@@ -27,7 +27,7 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
     const dropdownRef = useClickOutside(() => close());
 
     useEffect(() => {
-        console.log('activeFilter changed:', activeFilter);
+        
         if (!activeFilter) {
             setSelected(null);
             setShowCustomDateInputs(false);

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StripeSubscription extends Model
 {
@@ -28,5 +29,24 @@ class StripeSubscription extends Model
         'start_date',
         'current_period_start',
         'payment_status_id',
+    ];
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
+    public function app(): BelongsTo
+    {
+        return $this->belongsTo(App::class, 'app_uuid', 'uuid');
+    }
+
+    protected $casts = [
+        'current_period_start' => 'datetime',
+        'ends_at'              => 'datetime',
+        'trial_ends_at'        => 'datetime',
+        'start_date'           => 'datetime',
+        'created_at'           => 'datetime',
+        'updated_at'           => 'datetime',
     ];
 }
