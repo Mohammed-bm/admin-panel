@@ -31,6 +31,8 @@ class StripeSubscription extends Model
         'payment_status_id',
     ];
 
+    
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);

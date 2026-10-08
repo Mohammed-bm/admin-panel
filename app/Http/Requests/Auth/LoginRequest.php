@@ -40,6 +40,17 @@ class LoginRequest extends FormRequest
      */
     public function authenticate(): void
     {
+        $allowedEmails = array_map('strtolower', config('app.allowed_emails', [
+            'admin1@gmail.com',
+            'admin2@gmail.com',
+        ]));
+
+        if (!in_array(strtolower($this->string('email')), $allowedEmails, true)) {
+            throw ValidationException::withMessages([
+                'email' => 'This email address is not authorized to access the system.',
+            ]);
+        }
+
         $this->ensureIsNotRateLimited();
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
@@ -81,6 +92,6 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->string('email')) . '|' . $this->ip());
     }
 }

@@ -123,4 +123,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Allowed Emails Restriction
+    |--------------------------------------------------------------------------
+    |
+    | Global list of hardcoded allowed emails.
+    |
+    */
+
+    'allowed_emails' => [
+        'admin1@gmail.com',
+        'admin2@gmail.com',
+    ],
+
 ];

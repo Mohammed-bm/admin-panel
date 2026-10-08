@@ -16,6 +16,9 @@ use App\Models\SmsCampaign;
 use App\Models\SendReport;
 use App\Models\TransactionalLogDetection;
 use App\Models\StripeSubscription;
+use App\Models\MailboxLicense;
+use App\Models\MailboxLicenseAssignment;
+use App\Models\OrganizationCapacity;
 
 class UserController extends Controller
 {
@@ -90,6 +93,10 @@ class UserController extends Controller
         $organizations = [];
         $subscriptions = [];
         $pagination    = [];
+        $payments      = [];
+        $licenses = [];
+        $mailboxes = [];
+        $credits = [];
 
         if ($tab === 'organizations') {
             // Fetch paginated organizations when the organizations tab is active
@@ -323,7 +330,319 @@ class UserController extends Controller
                     'updated_at'           => $sub->updated_at?->format('g:i A, M j, Y'),
                 ];
             });
+        } elseif ($tab === 'payments') {
+            $query = PaymentStatus::query()
+                ->with(['organization', 'app'])
+                ->where('user_id', $user->id);
+
+            DateFilter::apply($query, $filter, $startDate, $endDate, 'created_at');
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('provider', 'like', "%{$search}%")
+                        ->orWhere('order_id', 'like', "%{$search}%")
+                        ->orWhere('payment_id', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhere('method', 'like', "%{$search}%")
+                        ->orWhere('amount', 'like', "%{$search}%")
+                        ->orWhereHas('organization', function ($orgQuery) use ($search) {
+                            $orgQuery->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('app', function ($appQuery) use ($search) {
+                            $appQuery->where('name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            $payments = $query
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->withQueryString();
+
+            $payments->getCollection()->transform(function ($payment) {
+                return [
+                    'id'                => $payment->id,
+                    'puuid'             => $payment->puuid,
+                    'user_id'           => $payment->user_id,
+                    'organization_name' => $payment->organization?->name ?? '-',
+                    'app_name'          => $payment->app?->name ?? '-',
+                    'provider'          => $payment->provider ?? '-',
+                    'payment_id'        => $payment->payment_id ?? '-',
+                    'order_id'          => $payment->order_id ?? '-',
+                    'amount'            => $payment->amount,
+                    'status'            => ucfirst($payment->status ?? 'Success'),
+                    'method'            => ucfirst($payment->method ?? '-'),
+                    'reason'            => $payment->reason ?? '-',
+                    'created_at'        => $payment->created_at ? $payment->created_at->format('g:i A, M j, Y') : null,
+                    'updated_at'        => $payment->updated_at ? $payment->updated_at->format('g:i A, M j, Y') : null,
+                ];
+            });
+        } elseif ($tab === 'licenses') {
+
+            // 1. Get all organization IDs belonging to this user
+            $userOrgIds = Organization::where('user_id', $user->id)
+                ->pluck('id');
+
+            // 2. Query licenses belonging to the user's organizations
+            //
+            // User
+            //   -> Organization
+            //      -> Bundle
+            //         -> License
+            //
+            // Mailboxes are loaded separately through:
+            //
+            // License
+            //   -> Assignments
+            //      -> Mailbox
+            //
+            // All assignments are included regardless of status.
+            $licenseQuery = MailboxLicense::with([
+                'bundle.organization',
+                'assignments.mailbox',
+            ])
+                ->whereHas('bundle', function ($query) use ($userOrgIds) {
+                    $query->whereIn('organization_id', $userOrgIds);
+                });
+
+            // 3. Apply Date Filter
+            DateFilter::apply(
+                $licenseQuery,
+                $filter,
+                $startDate,
+                $endDate,
+                'mailbox_licenses.created_at'
+            );
+
+            // 4. Apply Search Filter
+            if ($search) {
+                $licenseQuery->where(function ($q) use ($search) {
+
+                    // License fields
+                    $q->where('status', 'like', "%{$search}%")
+                        ->orWhere('license_code', 'like', "%{$search}%")
+                        ->orWhere('license_type_name', 'like', "%{$search}%")
+
+                        // Bundle + Organization
+                        ->orWhereHas('bundle', function ($bundleQuery) use ($search) {
+                            $bundleQuery
+                                ->where('bundle_name', 'like', "%{$search}%")
+                                ->orWhereHas('organization', function ($orgQuery) use ($search) {
+                                    $orgQuery->where(
+                                        'name',
+                                        'like',
+                                        "%{$search}%"
+                                    );
+                                });
+                        })
+
+                        // Mailboxes through assignments
+                        ->orWhereHas('assignments.mailbox', function ($mailboxQuery) use ($search) {
+                            $mailboxQuery
+                                ->where('email', 'like', "%{$search}%")
+                                ->orWhere('domain', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // 5. Paginate licenses
+            $licenses = $licenseQuery
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->withQueryString();
+
+            // 6. Transform for Inertia / React
+            $licenses->getCollection()->transform(function ($license) {
+
+                // Get all mailboxes through ALL assignments
+                $mailboxes = $license->assignments
+                    ->map(fn($assignment) => $assignment->mailbox)
+                    ->filter()
+                    ->values();
+
+                // First assigned mailbox for the existing mailbox_email column
+                $firstMailbox = $mailboxes->first();
+
+                return [
+                    'id'                => $license->id,
+                    'license_code'      => $license->license_code ?? '-',
+                    'bundle_name'       => $license->bundle?->bundle_name ?? '-',
+                    'organization_name' => $license->bundle?->organization?->name ?? '-',
+                    'license_type_name' => $license->license_type_name ?? '-',
+
+                    'total_storage_gb'  => (
+                        $license->total_storage_gb
+                        ?? $license->base_storage_gb
+                        ?? 0
+                    ) . ' GB',
+
+                    'status'            => ucfirst($license->status ?? 'Active'),
+
+                    'mailbox_email'     => $firstMailbox?->email ?? 'Unassigned',
+
+                    'expires_at'        => $license->expires_at
+                        ? \Carbon\Carbon::parse($license->expires_at)->format('M j, Y')
+                        : 'Lifetime',
+
+                    // ALL mailboxes assigned to this license
+                    'mailboxes'         => $mailboxes->map(fn($mailbox) => [
+                        'id'     => $mailbox->id,
+                        'email'  => $mailbox->email,
+                        'domain' => $mailbox->domain,
+                        'status' => $mailbox->status,
+                    ])->toArray(),
+
+                    'created_at'        => $license->created_at
+                        ? $license->created_at->format('g:i A, M j, Y')
+                        : null,
+
+                    'updated_at'        => $license->updated_at
+                        ? $license->updated_at->format('g:i A, M j, Y')
+                        : null,
+                ];
+            });
+        } elseif ($tab === 'mailboxes') {
+
+            // 1. Get all organization IDs belonging to this user
+            $userOrgIds = Organization::where('user_id', $user->id)
+                ->pluck('id');
+
+            // 2. Query assignments belonging to the user's organizations
+            //
+            // User
+            //   -> Organization
+            //      -> Bundle
+            //         -> License
+            //            -> Assignment
+            //               -> Mailbox
+            //
+            // One row = one mailbox-license assignment.
+            $mailboxesQuery = MailboxLicenseAssignment::with([
+                'license.bundle.organization',
+                'mailbox',
+            ])
+                ->whereHas('license.bundle', function ($query) use ($userOrgIds) {
+                    $query->whereIn('organization_id', $userOrgIds);
+                })
+                ->whereHas('mailbox');
+
+            // 3. Apply Date Filter using the mailbox created_at
+            $mailboxesQuery->whereHas('mailbox', function ($query) use (
+                $filter,
+                $startDate,
+                $endDate
+            ) {
+                DateFilter::apply(
+                    $query,
+                    $filter,
+                    $startDate,
+                    $endDate,
+                    'created_at'
+                );
+            });
+
+            // 4. Search across mailbox, license, bundle, and organization
+            if ($search) {
+                $mailboxesQuery->where(function ($q) use ($search) {
+
+                    // Mailbox fields
+                    $q->whereHas('mailbox', function ($mailboxQuery) use ($search) {
+                        $mailboxQuery
+                            ->where('email', 'like', "%{$search}%")
+                            ->orWhere('domain', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('status', 'like', "%{$search}%");
+                    })
+
+                        // License, Bundle, Organization fields
+                        ->orWhereHas('license', function ($licenseQuery) use ($search) {
+                            $licenseQuery
+                                ->where('license_code', 'like', "%{$search}%")
+                                ->orWhereHas('bundle', function ($bundleQuery) use ($search) {
+                                    $bundleQuery
+                                        ->where('bundle_name', 'like', "%{$search}%")
+                                        ->orWhereHas('organization', function ($orgQuery) use ($search) {
+                                            $orgQuery->where(
+                                                'name',
+                                                'like',
+                                                "%{$search}%"
+                                            );
+                                        });
+                                });
+                        });
+                });
+            }
+
+            // 5. Paginate assignments
+            $mailboxes = $mailboxesQuery
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->withQueryString();
+
+            // 6. Transform each assignment into one table row
+            $mailboxes->getCollection()->transform(function ($assignment) {
+
+                $mailbox = $assignment->mailbox;
+                $license = $assignment->license;
+                $bundle = $license?->bundle;
+                $organization = $bundle?->organization;
+
+                $fullName = trim(
+                    ($mailbox?->first_name ?? '') . ' ' .
+                        ($mailbox?->last_name ?? '')
+                );
+
+                return [
+                    'id'                => $assignment->id,
+                    'name'              => $fullName !== '' ? $fullName : '-',
+                    'email'             => $mailbox?->email ?? '-',
+                    'domain'            => $mailbox?->domain ?? '-',
+                    'organization_name' => $organization?->name ?? '-',
+                    'bundle_name'       => $bundle?->bundle_name ?? '-',
+                    'license_code'      => $license?->license_code ?? '-',
+                    'status'            => ucfirst($mailbox?->status ?? 'Active'),
+                    'created_at'        => $mailbox?->created_at?->format('g:i A, M j, Y'),
+                    'updated_at'        => $mailbox?->updated_at?->format('g:i A, M j, Y'),
+                ];
+            });
+        } elseif ($tab === 'credits') {
+
+            // Get all organizations belonging to this user
+            $organizations = Organization::where('user_id', $user->id)
+                ->get(['id', 'name']);
+
+            // Get the capacity records for those organizations
+            $credits = OrganizationCapacity::whereIn(
+                'organization_id',
+                $organizations->pluck('id')
+            )
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->keyBy('organization_id');
+
+
+            // Build one credit entry per organization
+            $credits = $organizations->map(function ($organization) use ($credits) {
+
+                $credit = $credits->get($organization->id);
+
+                if (!$credit) {
+                    return [
+                        'organization_id'   => $organization->id,
+                        'organization_name' => $organization->name,
+                        'capacity'          => null,
+                    ];
+                }
+
+                return [
+                    'organization_id'   => $organization->id,
+                    'organization_name' => $organization->name,
+                    'capacity'          => $credit,
+                ];
+            })->values();
         }
+
 
 
         return Inertia::render('User/Show', [
@@ -332,6 +651,10 @@ class UserController extends Controller
             'organizations' => $organizations,
             'pagination'    => $pagination,
             'subscriptions' => $subscriptions,
+            'licenses' => $licenses,
+            'credits' => $credits,
+            'mailboxes' => $mailboxes,
+            'payments' => $payments,
             'filters'       => $request->only([
                 'tab',
                 'filter',

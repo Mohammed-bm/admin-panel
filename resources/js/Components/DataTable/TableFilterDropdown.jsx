@@ -26,8 +26,23 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
     // Attach click-outside hook to close the main filter dropdown
     const dropdownRef = useClickOutside(() => close());
 
+    const getUrlParams = () => {
+        if (typeof window === 'undefined') return { start: null, end: null };
+        const params = new URLSearchParams(window.location.search);
+        const startParam = params.get('start_date');
+        const endParam = params.get('end_date');
+
+        const parsedStart = startParam ? new Date(startParam) : null;
+        const parsedEnd = endParam ? new Date(endParam) : null;
+
+        return {
+            start: parsedStart && !isNaN(parsedStart) ? parsedStart : null,
+            end: parsedEnd && !isNaN(parsedEnd) ? parsedEnd : null,
+        };
+    };
+
     useEffect(() => {
-        
+
         if (!activeFilter) {
             setSelected(null);
             setShowCustomDateInputs(false);
@@ -38,6 +53,12 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
 
         if (activeFilter === 'custom') {
             setSelected({ name: 'Custom Range', value: 'custom' });
+            setShowCustomDateInputs(true);
+
+            // Populate initial dates from URL query params if present
+            const { start, end } = getUrlParams();
+            if (start) setStartDate(start);
+            if (end) setEndDate(end);
             return;
         }
 
@@ -66,16 +87,40 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
     };
 
     const handleStartDateChange = (date) => {
-        setStartDate(date);
-        if (date && endDate) {
-            triggerDateFilter(date, endDate);
+        if (!date) {
+            setStartDate(null);
+            return;
+        }
+
+        // If end date exists and selected start date is after end date, swap them
+        if (endDate && date > endDate) {
+            setStartDate(endDate);
+            setEndDate(date);
+            triggerDateFilter(endDate, date);
+        } else {
+            setStartDate(date);
+            if (endDate) {
+                triggerDateFilter(date, endDate);
+            }
         }
     };
 
     const handleEndDateChange = (date) => {
-        setEndDate(date);
-        if (startDate && date) {
-            triggerDateFilter(startDate, date);
+        if (!date) {
+            setEndDate(null);
+            return;
+        }
+
+        // If start date exists and selected end date is before start date, swap them
+        if (startDate && date < startDate) {
+            setStartDate(date);
+            setEndDate(startDate);
+            triggerDateFilter(date, startDate);
+        } else {
+            setEndDate(date);
+            if (startDate) {
+                triggerDateFilter(startDate, date);
+            }
         }
     };
 
@@ -183,7 +228,6 @@ export default function TableFilterDropdown({ activeFilter = '', onFilter, onDat
                             selectsEnd
                             startDate={startDate}
                             endDate={endDate}
-                            minDate={startDate}
                             placeholderText="yyyy-MM-dd"
                             dateFormat="yyyy-MM-dd"
                             showMonthDropdown

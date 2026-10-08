@@ -19,4 +19,9 @@ class MailboxLicense extends Model
     {
         return $this->belongsTo(MailboxLicense::class, 'license_id', 'id');
     }
+    public function mailboxes()
+    {
+        return $this->hasMany(MyMailbox::class, 'license_id');
+    }
+    
 }

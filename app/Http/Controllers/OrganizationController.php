@@ -115,23 +115,17 @@ class OrganizationController extends Controller
             )->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($subscription) {
-                    $subscription->trial_ends_at = $subscription->trial_ends_at
-                        ? Carbon::parse($subscription->trial_ends_at)->format('g:i A, M j, Y')
-                        : null;
+                    return [
+                        'id'            => $subscription->id,
+                        'stripe_status' => $subscription->stripe_status,
+                        'amount'        => $subscription->amount,
 
-                    $subscription->ends_at = $subscription->ends_at
-                        ? Carbon::parse($subscription->ends_at)->format('g:i A, M j, Y')
-                        : null;
-
-                    $subscription->created_date = $subscription->created_at
-                        ? $subscription->created_at->format('g:i A, M j, Y')
-                        : null;
-
-                    $subscription->updated_date = $subscription->updated_at
-                        ? $subscription->updated_at->format('g:i A, M j, Y')
-                        : null;
-
-                    return $subscription;
+                        // Direct null-safe formatting (No Carbon::parse needed!)
+                        'trial_ends_at' => $subscription->trial_ends_at?->format('g:i A, M j, Y'),
+                        'ends_at'       => $subscription->ends_at?->format('g:i A, M j, Y'),
+                        'created_date'  => $subscription->created_at?->format('g:i A, M j, Y'),
+                        'updated_date'  => $subscription->updated_at?->format('g:i A, M j, Y'),
+                    ];
                 });
         }
 

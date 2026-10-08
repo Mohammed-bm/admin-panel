@@ -3,24 +3,23 @@ import { router } from '@inertiajs/react';
 import { TableSearchInput, TableFilterDropdown, TableView } from '@/components/DataTable';
 import Pagination from '@/Components/DataTable/pagination';
 
-export default function UserSubscription({
+export default function UserMailboxes({
     user,
-    subscriptions = {},
+    mailboxes = {},
     filters = {}
 }) {
-    console.log("subscriptions:", subscriptions)
+    console.log("mailboxes:", mailboxes);
     const urlParams = new URLSearchParams(window.location.search);
-    const activeTab = urlParams.get('tab') || 'subscriptions';
+    const activeTab = urlParams.get('tab') || 'mailboxes';
 
-    const subscriptionList = subscriptions?.data || [];
-    const currentPage = subscriptions?.current_page || 1;
-    const currentPerPage = subscriptions?.per_page || 10;
-    const lastPage = subscriptions?.last_page || 1;
-    const total = subscriptions?.total || 0;
+    const licenseList = mailboxes?.data || [];
+    const currentPage = mailboxes?.current_page || 1;
+    const currentPerPage = mailboxes?.per_page || 10;
+    const lastPage = mailboxes?.last_page || 1;
+    const total = mailboxes?.total || 0;
 
-    const tableData = subscriptionList.map((org, index) => ({
-        ...org,
-        email: user?.email || '-',
+    const tableData = licenseList.map((license, index) => ({
+        ...license,
         row_number: (currentPage - 1) * currentPerPage + index + 1,
     }));
 
@@ -32,33 +31,38 @@ export default function UserSubscription({
             searchable: false,
         },
         {
+            title: 'Name',
+            data: 'name',
+            render: (data) => data || '-',
+        },
+        {
+            title: 'Email',
+            data: 'email',
+            render: (data) => data || '-',
+        },
+        {
+            title: 'Domain',
+            data: 'domain',
+            render: (data) => data || '-',
+        },
+        {
             title: 'Organization',
             data: 'organization_name',
             render: (data) => data || '-',
         },
         {
-            title: 'App Name',
-            data: 'app_name',
+            title: 'Bundle Name',
+            data: 'bundle_name',
             render: (data) => data || '-',
         },
         {
-            title: 'Subscription',
-            data: 'subscription_name',
+            title: 'License Code',
+            data: 'license_code',
             render: (data) => data || '-',
         },
         {
             title: 'Status',
-            data: 'stripe_status',
-            render: (data) => data || '-',
-        },
-        {
-            title: 'Amount',
-            data: 'amount',
-            render: (data, row) => data ? `${row.currency ? row.currency.toUpperCase() : '$'} ${(parseFloat(data)).toFixed(2)}` : '$0.00',
-        },
-        {
-            title: 'Payment Status',
-            data: 'payed_or_unpaid',
+            data: 'status',
             render: (data) => data || '-',
         },
         {
@@ -67,8 +71,8 @@ export default function UserSubscription({
             render: (data) => data || '-',
         },
         {
-            title: 'Ends At',
-            data: 'ends_at',
+            title: 'Updated At',
+            data: 'updated_at',
             render: (data) => data || '-',
         },
     ];
@@ -151,7 +155,7 @@ export default function UserSubscription({
                     <TableSearchInput
                         activeSearch={search}
                         onSearch={handleSearch}
-                        placeholder="Search organizations by name, website..."
+                        placeholder="Search by bundle name, status..."
                     />
                 </div>
 
@@ -164,7 +168,6 @@ export default function UserSubscription({
             </div>
 
             <div>
-
                 <TableView
                     columns={columns}
                     data={tableData}

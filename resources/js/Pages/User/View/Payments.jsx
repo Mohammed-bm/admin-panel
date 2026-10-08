@@ -3,20 +3,20 @@ import { router } from '@inertiajs/react';
 import { TableSearchInput, TableFilterDropdown, TableView } from '@/components/DataTable';
 import Pagination from '@/Components/DataTable/pagination';
 
-export default function UserSubscription({
+export default function UserPayments({
     user,
-    subscriptions = {},
+    payments = {},
     filters = {}
 }) {
-    console.log("subscriptions:", subscriptions)
+    console.log("payments:", payments)
     const urlParams = new URLSearchParams(window.location.search);
-    const activeTab = urlParams.get('tab') || 'subscriptions';
+    const activeTab = urlParams.get('tab') || 'payments';
 
-    const subscriptionList = subscriptions?.data || [];
-    const currentPage = subscriptions?.current_page || 1;
-    const currentPerPage = subscriptions?.per_page || 10;
-    const lastPage = subscriptions?.last_page || 1;
-    const total = subscriptions?.total || 0;
+    const subscriptionList = payments?.data || [];
+    const currentPage = payments?.current_page || 1;
+    const currentPerPage = payments?.per_page || 10;
+    const lastPage = payments?.last_page || 1;
+    const total = payments?.total || 0;
 
     const tableData = subscriptionList.map((org, index) => ({
         ...org,
@@ -42,13 +42,13 @@ export default function UserSubscription({
             render: (data) => data || '-',
         },
         {
-            title: 'Subscription',
-            data: 'subscription_name',
+            title: 'provider',
+            data: 'provider',
             render: (data) => data || '-',
         },
         {
-            title: 'Status',
-            data: 'stripe_status',
+            title: 'method',
+            data: 'method',
             render: (data) => data || '-',
         },
         {
@@ -58,7 +58,7 @@ export default function UserSubscription({
         },
         {
             title: 'Payment Status',
-            data: 'payed_or_unpaid',
+            data: 'status',
             render: (data) => data || '-',
         },
         {
@@ -67,8 +67,8 @@ export default function UserSubscription({
             render: (data) => data || '-',
         },
         {
-            title: 'Ends At',
-            data: 'ends_at',
+            title: 'Updated At',
+            data: 'updated_at',
             render: (data) => data || '-',
         },
     ];
