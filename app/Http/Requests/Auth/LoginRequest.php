@@ -41,8 +41,7 @@ class LoginRequest extends FormRequest
     public function authenticate(): void
     {
         $allowedEmails = array_map('strtolower', config('app.allowed_emails', [
-            'admin1@gmail.com',
-            'admin2@gmail.com',
+            'leadnestadmin@gmail.com',
         ]));
 
         if (!in_array(strtolower($this->string('email')), $allowedEmails, true)) {
